@@ -2,7 +2,6 @@
 加载并评估模型
 """
 from utils import load_model, extend_maps, prepocess_data_for_lstmcrf
-from data import build_corpus
 from evaluating import Metrics
 
 
