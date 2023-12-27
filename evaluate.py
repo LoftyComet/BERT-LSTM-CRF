@@ -11,7 +11,7 @@ from utils import save_model, flatten_lists
 from evaluating import Metrics
 
 
-def bilstm_train_and_eval(train_data, dev_data, test_data,
+def bilstm_train_and_eval2(train_data, dev_data, test_data,
                           word2id, tag2id, crf=True, remove_O=False, bert=False, data_index=1):
     """训练评估保存CRF模型
 
@@ -64,29 +64,29 @@ def bilstm_train_and_eval(train_data, dev_data, test_data,
 def bilstm_train_and_eval(train_data, dev_data, test_data):
     """训练评估保存CRF模型
 
-        :param crf: 是否添加cfr
-        :param remove_O: 评估时是否去除O标签
-        :param bert: 是否添加bert
-        :param data_index: 处理的数据集编号
+        :param train_data: 是否添加cfr
+        :param dev_data: 评估时是否去除O标签
+        :param test_data: 是否添加bert
         """
 
     start = time.time()
 
-    list_model = LstmModel()
+    lstm_model = LstmModel()
     train_lists = train_data[0]
     train_tag_lists = train_data[1]
     dev_lists = dev_data[0]
     dev_tag_lists = dev_data[1]
     test_lists = test_data[0]
     test_tag_lists = test_data[1]
-    list_model.train(train_lists, train_tag_lists,
+    lstm_model.train(train_lists, train_tag_lists,
                      dev_lists, dev_tag_lists)
     model_name = "lstm_"
-    save_model(list_model, "./ckpts/" + model_name + ".pkl")
+    save_model(lstm_model, "./model_saved/" + model_name + ".pkl")
     print("训练完毕,共用时{}秒.".format(int(time.time() - start)))
     torch.cuda.empty_cache()
+
     print("评估{}模型中...".format(model_name))
-    pred_tag_lists, test_tag_lists = list_model.test(
+    pred_tag_lists, test_tag_lists = lstm_model.test(
         test_lists, test_tag_lists)
 
     metrics = Metrics(test_tag_lists, pred_tag_lists)

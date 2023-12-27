@@ -4,6 +4,7 @@ bilstm-crf
 from itertools import zip_longest
 from copy import deepcopy
 
+import numpy as np
 from transformers import BertTokenizer
 from transformers.models.bert.modeling_bert import *
 import torch
@@ -45,13 +46,7 @@ class LstmModel(object):
         self.best_model = None
 
     def train(self, word_lists, tag_lists,
-              dev_word_lists, dev_tag_lists,
-              ):
-        # 对数据集按照长度进行排序
-        word_lists, tag_lists, _ = sort_by_lengths(word_lists, tag_lists)
-        dev_word_lists, dev_tag_lists, _ = sort_by_lengths(
-            dev_word_lists, dev_tag_lists)
-
+              dev_word_lists, dev_tag_lists):
         B = self.batch_size
         for e in range(1, self.epochs + 1):
             self.step = 0
@@ -61,8 +56,7 @@ class LstmModel(object):
                 batch_sents = word_lists[ind:ind + B]
                 batch_tags = tag_lists[ind:ind + B]
 
-                losses += self.train_step(batch_sents,
-                                          batch_tags, word2id, tag2id, bert=bert)
+                losses += self.train_step(batch_sents, batch_tags)
                 # 每print_step打印一次
                 if self.step % TrainingConfig.print_step == 0:
                     total_step = (len(word_lists) // B + 1)
@@ -75,23 +69,24 @@ class LstmModel(object):
 
             # 每轮结束测试在验证集上的性能，保存最好的一个
             val_loss = self.validate(
-                dev_word_lists, dev_tag_lists, word2id, tag2id, bert=bert)
+                dev_word_lists, dev_tag_lists)
             print("Epoch {}, Val Loss:{:.4f}".format(e, val_loss))
 
-    def train_step(self, batch_sents, batch_tags, word2id, tag2id, bert=False):
+    def train_step(self, batch_sents, batch_tags):
         self.model.train()
         self.step += 1
         # 准备数据
-        # 将词向量张量化
+        # 将向量张量化
 
-        tensorized_sents, lengths = tensorized(batch_sents, word2id)
-        tensorized_sents = tensorized_sents.to(self.device)
+        # batch_sents = np.array(batch_sents)
+        # batch_sents = torch.from_numpy(batch_sents)
 
-        targets, lengths = tensorized(batch_tags, tag2id)
-        targets = targets.to(self.device)
+        batch_sents = batch_sents.to(self.device)
+
+        targets = batch_tags.to(self.device)
         # 从BiLSTM层获得发射得分
         # 前向传播
-        scores = self.model(tensorized_sents, LSTMConfig.out_size)
+        scores = self.model(batch_sents, LSTMConfig.time_step)
         # 计算损失 更新参数
         # step1 清空梯度
         self.optimizer.zero_grad()
@@ -104,7 +99,7 @@ class LstmModel(object):
 
         return loss.item()
 
-    def validate(self, dev_word_lists, dev_tag_lists, word2id, tag2id, bert=False):
+    def validate(self, dev_word_lists, dev_tag_lists):
         self.model.eval()
         with torch.no_grad():
             val_losses = 0.
@@ -114,33 +109,14 @@ class LstmModel(object):
                 # 准备batch数据
                 batch_sents = dev_word_lists[ind:ind + self.batch_size]
                 batch_tags = dev_tag_lists[ind:ind + self.batch_size]
-                _, lengths = tensorized(batch_sents, word2id)
-                # 将词向量张量化
-                if bert:
-                    tokenizer = BertTokenizer.from_pretrained('pretrained_bert_models')
-                    list_batch_sents = list(batch_sents)
-                    batch_sentence = []
-                    for sentence in list_batch_sents:
-                        temp = ''
-                        for word in sentence:
-                            temp = temp + word
-                        batch_sentence.append(temp)
-                    batch = tokenizer(batch_sentence, padding=True, return_tensors="pt").to(self.device)
-                    tensorized_sents = self.bert_model(input_ids=batch['input_ids'])[0].to(self.device)
-
-                else:
-                    tensorized_sents, lengths = tensorized(batch_sents, word2id)
-                    tensorized_sents = tensorized_sents.to(self.device)
-                # targets, lengths = tensorized(batch_tags, tag2id)
-                targets, _ = tensorized(batch_tags, tag2id)
-                targets = targets.to(self.device)
+                batch_sents = batch_sents.to(self.device)
+                targets = batch_tags.to(self.device)
                 # forward
                 # print("传入的lengths参数", lengths)
-                scores = self.model(tensorized_sents, lengths)
+                scores = self.model(batch_sents, LSTMConfig.time_step)
 
                 # 计算损失
-                loss = self.cal_loss_func(
-                    scores, targets, tag2id).to(self.device)
+                loss = self.cal_loss_func(scores, targets).to(self.device)
                 val_losses += loss.item()
             val_loss = val_losses / val_step
 
@@ -156,21 +132,7 @@ class LstmModel(object):
         # 准备数据
         word_lists, tag_lists, indices = sort_by_lengths(word_lists, tag_lists)
         tensorized_sents, lengths = tensorized(word_lists, word2id)
-        if bert:
-            tokenizer = BertTokenizer.from_pretrained('pretrained_bert_models')
-            list_batch_sents = list(word_lists)
-            batch_sentence = []
-            for sentence in list_batch_sents:
-                temp = ''
-                for word in sentence:
-                    temp = temp + word
-                batch_sentence.append(temp)
-
-            batch = tokenizer(batch_sentence, padding=True, return_tensors="pt").to(self.device)
-            tensorized_sents = self.bert_model(input_ids=batch['input_ids'])[0].to(self.device)
-        else:
-
-            tensorized_sents = tensorized_sents.to(self.device)
+        tensorized_sents = tensorized_sents.to(self.device)
 
         self.best_model.eval()
         with torch.no_grad():

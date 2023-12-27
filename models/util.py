@@ -31,6 +31,7 @@ def sent2features(sent):
 
 # ******** LSTM模型 工具函数*************
 
+
 def tensorized(batch, maps):
     PAD = maps.get('<pad>')
     UNK = maps.get('<unk>')
@@ -51,6 +52,15 @@ def tensorized(batch, maps):
 
     return batch_tensor, lengths
 
+
+def tensor_input(batch, length):
+    batch_size = len(batch)
+    temp = batch[0][0]
+    batch_tensor = torch.ones(batch_size, length).long() * temp
+    for i, l in enumerate(batch):
+        for j, e in enumerate(l):
+            batch_tensor[i][j] = batch[l][e]
+    return batch_tensor
 
 def sort_by_lengths(word_lists, tag_lists):
     pairs = list(zip(word_lists, tag_lists))

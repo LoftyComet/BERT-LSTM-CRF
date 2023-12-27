@@ -15,12 +15,12 @@ class TrainingConfig(object):
     # 学习速率
     lr = 0.001
     epochs = 5
-    print_step = 5
+    print_step = 1
 
 
 class LSTMConfig(object):
-    hidden_size = 64  # lstm隐向量的维数
+    hidden_size = 128  # lstm隐向量的维数
     num_layers = 1  # lstm层数
     time_step = 20  # 时间步长 !!!暂定20
-    input_size = 24
+    input_size = 81
     out_size = 3

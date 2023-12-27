@@ -15,9 +15,9 @@ class LSTM(nn.Module):
         :param out_size:输出向量的维数
         """
         super(LSTM, self).__init__()
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-        # 数据投影层，将BiLSTM输出的2*hidden_size维度的向量映射为输出标签的个数的维度
-        self.lin = nn.Linear(2*hidden_size, out_size)
+        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        # 数据投影层，将BiLSTM输出的hidden_size维度的向量映射为输出标签的个数的维度
+        self.lin = nn.Linear(hidden_size, out_size)
         # !!!备用
         # self.fc = nn.Sequential(
         #     nn.Linear(hidden_dim, output_dim)
@@ -25,11 +25,11 @@ class LSTM(nn.Module):
 
     def forward(self, scents_tensor, lengths):
         emb = scents_tensor
-        packed = pack_padded_sequence(emb, lengths, batch_first=True)  # [Batch_size, Length, out_size]
-        rnn_out, _ = self.lstm(packed)
-        # rnn_out:[B, L, hidden_size*2]
-        rnn_out, _ = pad_packed_sequence(rnn_out, batch_first=True)
-
+        # packed = pack_padded_sequence(emb, lengths, batch_first=True)  # [Batch_size, Length, out_size]
+        # rnn_out, _ = self.lstm(packed)
+        # # rnn_out:[B, L, hidden_size*2]
+        # rnn_out, _ = pad_packed_sequence(rnn_out, batch_first=True)
+        rnn_out, _ = self.lstm(emb)
         # 转换为标注种类的维度
         scores = self.lin(rnn_out)  # [B, L, out_size]
 
