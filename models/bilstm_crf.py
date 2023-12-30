@@ -30,6 +30,7 @@ class LstmModel(object):
         self.out_size = LSTMConfig.out_size
         self.model = LSTM(self.input_size, self.hidden_size, self.num_layers, self.out_size).to(self.device)
         self.cal_loss_func = nn.MSELoss(reduction='mean')
+        # self.cal_loss_func = nn.SmoothL1Loss(reduction='mean')
 
         # 加载训练参数：
         self.epochs = TrainingConfig.epochs
@@ -130,36 +131,12 @@ class LstmModel(object):
     def test(self, word_lists, tag_lists):
         """返回最佳模型在测试集上的预测结果"""
         # 准备数据
-        word_lists, tag_lists, indices = sort_by_lengths(word_lists, tag_lists)
-        tensorized_sents, lengths = tensorized(word_lists, word2id)
-        tensorized_sents = tensorized_sents.to(self.device)
-
+        tensorized_sents = word_lists.to(self.device)
         self.best_model.eval()
         with torch.no_grad():
-            batch_tagids = self.best_model.test(
-                tensorized_sents, lengths, tag2id)
+            batch_tag = self.best_model.test(tensorized_sents, LSTMConfig.time_step)
 
-        # 将id转化为标注
-        pred_tag_lists = []
-        id2tag = dict((id_, tag) for tag, id_ in tag2id.items())
-        for i, ids in enumerate(batch_tagids):
-            tag_list = []
-            if self.crf:
-                for j in range(lengths[i] - 1):  # crf解码过程中，end被舍弃
-                    tag_list.append(id2tag[ids[j].item()])
-            else:
-                for j in range(lengths[i]):
-                    tag_list.append(id2tag[ids[j].item()])
-            pred_tag_lists.append(tag_list)
-
-        # indices存有根据长度排序后的索引映射的信息
-        # 比如若indices = [1, 2, 0] 则说明原先索引为1的元素映射到的新的索引是0，
-        # 索引为2的元素映射到新的索引是1...
-        # 下面根据indices将pred_tag_lists和tag_lists转化为原来的顺序
-        ind_maps = sorted(list(enumerate(indices)), key=lambda e: e[1])
-        indices, _ = list(zip(*ind_maps))
-        pred_tag_lists = [pred_tag_lists[i] for i in indices]
-        tag_lists = [tag_lists[i] for i in indices]
+        pred_tag_lists = batch_tag
 
         return pred_tag_lists, tag_lists
 

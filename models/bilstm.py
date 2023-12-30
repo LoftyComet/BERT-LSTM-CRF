@@ -16,6 +16,7 @@ class LSTM(nn.Module):
         """
         super(LSTM, self).__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.dropout = nn.Dropout(p=0.5)  # 添加dropout层
         # 数据投影层，将BiLSTM输出的hidden_size维度的向量映射为输出标签的个数的维度
         self.lin = nn.Linear(hidden_size, out_size)
         # !!!备用
@@ -23,21 +24,22 @@ class LSTM(nn.Module):
         #     nn.Linear(hidden_dim, output_dim)
         # )
 
-    def forward(self, scents_tensor, lengths):
+    def forward(self, scents_tensor, length):
         emb = scents_tensor
         # packed = pack_padded_sequence(emb, lengths, batch_first=True)  # [Batch_size, Length, out_size]
         # rnn_out, _ = self.lstm(packed)
         # # rnn_out:[B, L, hidden_size*2]
         # rnn_out, _ = pad_packed_sequence(rnn_out, batch_first=True)
         rnn_out, _ = self.lstm(emb)
+        rnn_out = self.dropout(rnn_out)
         # 转换为标注种类的维度
         scores = self.lin(rnn_out)  # [B, L, out_size]
 
         return scores
 
-    def test(self, sents_tensor, lengths, _):
+    def test(self, scents_tensor, length):
         """第三个参数不会用到，加它是为了与BiLSTM_CRF保持同样的接口"""
-        logits = self.forward(sents_tensor, lengths)  # [B, L, out_size]
-        _, batch_tagids = torch.max(logits, dim=2)
+        logit = self.forward(scents_tensor, length)  # [B, L, out_size]
+        # _, batch_tagids = torch.max(logits, dim=2)
 
-        return batch_tagids
+        return logit

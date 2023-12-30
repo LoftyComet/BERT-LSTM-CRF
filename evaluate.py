@@ -1,9 +1,11 @@
 """
 调用训练模型函数，评估模型函数，保存模型
 """
+import math
 import time
 from collections import Counter
 
+import numpy as np
 import torch
 
 from models.bilstm_crf import LstmModel
@@ -88,6 +90,17 @@ def bilstm_train_and_eval(train_data, dev_data, test_data):
     print("评估{}模型中...".format(model_name))
     pred_tag_lists, test_tag_lists = lstm_model.test(
         test_lists, test_tag_lists)
+    test_tag_lists = test_tag_lists.numpy()
+    pred_tag_lists = pred_tag_lists.numpy()
+    ans = []
+    for i in range(len(pred_tag_lists)):
+        # for j in range(len(pred_tag_lists[0])):
+        print("i", i, test_tag_lists[i][0][0], test_tag_lists[i][0][1], test_tag_lists[i][0][2])
+        print("i", i, pred_tag_lists[i][0][0], pred_tag_lists[i][0][1], pred_tag_lists[i][0][2])
+        temp = math.sqrt((test_tag_lists[i][0][0] - pred_tag_lists[i][0][0])**2 + (test_tag_lists[i][0][1] - pred_tag_lists[i][0][1])**2 + (test_tag_lists[i][0][2] - pred_tag_lists[i][0][2])**2)
+        print(temp)
+        ans.append(temp)
+    print(np.mean(ans))
 
     metrics = Metrics(test_tag_lists, pred_tag_lists)
     metrics.report_scores()
