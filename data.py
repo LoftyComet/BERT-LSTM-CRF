@@ -53,11 +53,18 @@ def load_data(start, end, data_dir="AI_magic_data"):
             for k in range(len(data_all[0][0])):
                 data_all_ans[i][j][k] = data_all[i][j][k]
     tag_all_ans = np.array(tag_all)[:, 8:11]
-    tag_all_ans = torch.ones((len(tag_all_ans), LSTMConfig.time_step, len(tag_all[0])))
+    # tag 带时序
+    # tag_all_ans = torch.ones((len(tag_all_ans), LSTMConfig.time_step, len(tag_all[0])))
+    # for i in range(len(tag_all)):
+    #     for j in range(LSTMConfig.time_step):
+    #         for k in range(len(tag_all[0])):
+    #             tag_all_ans[i][j][k] = tag_all[i][k]
+
+    # 不带时序
+    tag_all_ans = torch.ones((len(tag_all_ans), len(tag_all[0])))
     for i in range(len(tag_all)):
-        for j in range(LSTMConfig.time_step):
             for k in range(len(tag_all[0])):
-                tag_all_ans[i][j][k] = tag_all[i][k]
+                tag_all_ans[i][k] = tag_all[i][k]
     return data_all_ans, tag_all_ans
 
 

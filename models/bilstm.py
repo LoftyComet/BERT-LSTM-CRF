@@ -7,7 +7,7 @@ from torch.nn.utils.rnn import pad_sequence
 
 
 class LSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, out_size):
+    def __init__(self, input_size, hidden_size, num_layers, time_step, out_size):
         """初始化参数
 
         :param input_size:输入向量的维数
@@ -16,9 +16,12 @@ class LSTM(nn.Module):
         """
         super(LSTM, self).__init__()
         self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
-        self.dropout = nn.Dropout(p=0.5)  # 添加dropout层
+        self.dropout = nn.Dropout(p=0.3)  # 添加dropout层
         # 数据投影层，将BiLSTM输出的hidden_size维度的向量映射为输出标签的个数的维度
-        self.lin = nn.Linear(hidden_size, out_size)
+        self.lin = nn.Linear(time_step * hidden_size, out_size)
+        # self.lstm = nn.LSTM(
+        #     input_dim, hidden_dim, num_layers, batch_first=True)
+        #
         # !!!备用
         # self.fc = nn.Sequential(
         #     nn.Linear(hidden_dim, output_dim)
@@ -32,8 +35,9 @@ class LSTM(nn.Module):
         # rnn_out, _ = pad_packed_sequence(rnn_out, batch_first=True)
         rnn_out, _ = self.lstm(emb)
         rnn_out = self.dropout(rnn_out)
+        rnn_out2 = rnn_out.contiguous().view([rnn_out.size()[0], -1])
         # 转换为标注种类的维度
-        scores = self.lin(rnn_out)  # [B, L, out_size]
+        scores = self.lin(rnn_out2)  # [B, L, out_size]
 
         return scores
 

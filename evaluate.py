@@ -95,9 +95,9 @@ def bilstm_train_and_eval(train_data, dev_data, test_data):
     ans = []
     for i in range(len(pred_tag_lists)):
         # for j in range(len(pred_tag_lists[0])):
-        print("i", i, test_tag_lists[i][0][0], test_tag_lists[i][0][1], test_tag_lists[i][0][2])
-        print("i", i, pred_tag_lists[i][0][0], pred_tag_lists[i][0][1], pred_tag_lists[i][0][2])
-        temp = math.sqrt((test_tag_lists[i][0][0] - pred_tag_lists[i][0][0])**2 + (test_tag_lists[i][0][1] - pred_tag_lists[i][0][1])**2 + (test_tag_lists[i][0][2] - pred_tag_lists[i][0][2])**2)
+        print("i", i, test_tag_lists[i][0], test_tag_lists[i][1], test_tag_lists[i][2])
+        print("i", i, pred_tag_lists[i][0], pred_tag_lists[i][1], pred_tag_lists[i][2])
+        temp = math.sqrt((test_tag_lists[i][0] - pred_tag_lists[i][0])**2 + (test_tag_lists[i][1] - pred_tag_lists[i][1])**2 + (test_tag_lists[i][2] - pred_tag_lists[i][2])**2)
         print(temp)
         ans.append(temp)
     print(np.mean(ans))

@@ -28,7 +28,7 @@ class LstmModel(object):
         self.hidden_size = LSTMConfig.hidden_size
         self.num_layers = LSTMConfig.num_layers
         self.out_size = LSTMConfig.out_size
-        self.model = LSTM(self.input_size, self.hidden_size, self.num_layers, self.out_size).to(self.device)
+        self.model = LSTM(self.input_size, self.hidden_size, self.num_layers, LSTMConfig.time_step, self.out_size).to(self.device)
         self.cal_loss_func = nn.MSELoss(reduction='mean')
         # self.cal_loss_func = nn.SmoothL1Loss(reduction='mean')
 
