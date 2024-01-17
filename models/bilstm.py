@@ -7,7 +7,7 @@ from torch.nn.utils.rnn import pad_sequence
 
 
 class LSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, time_step, out_size):
+    def __init__(self, input_size, hidden_size, num_layers, time_step, completion_percentage, out_size):
         """初始化参数
 
         :param input_size:输入向量的维数
@@ -18,7 +18,7 @@ class LSTM(nn.Module):
         self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
         self.dropout = nn.Dropout(p=0.3)  # 添加dropout层
         # 数据投影层，将BiLSTM输出的hidden_size维度的向量映射为输出标签的个数的维度
-        self.lin = nn.Linear(time_step * hidden_size, out_size)
+        self.lin = nn.Linear(int(time_step * hidden_size * completion_percentage), out_size)
         # self.lstm = nn.LSTM(
         #     input_dim, hidden_dim, num_layers, batch_first=True)
         #
