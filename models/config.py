@@ -21,8 +21,8 @@ class TrainingConfig(object):
 class LSTMConfig(object):
     hidden_size = 64  # lstm隐向量的维数
     num_layers = 1  # lstm层数
-    time_step = 20  # 时间步长 !!!暂定20
+    time_step = 30  # 时间步长 !!!暂定20
     input_size = 44
     out_size = 3
-    completion_percentage = 1  # 选择过程完成的百分比
+    completion_percentage = 0.7  # 选择过程完成的百分比
 

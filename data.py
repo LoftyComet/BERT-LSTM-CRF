@@ -60,11 +60,14 @@ def load_data(start, end, data_dir="AI_magic_data"):
                 print("case", i, "被完全去除了")
 
     # 转换为tensor
-    data_all_ans = torch.ones((len(data_all), len(data_all[0]), len(data_all[0][0])))
+    data_all_ans = torch.zeros((len(data_all), len(data_all[0]), len(data_all[0][0])))
     for i in range(len(data_all)):
         for j in range(len(data_all[0])):
             for k in range(len(data_all[0][0])):
-                data_all_ans[i][j][k] = data_all[i][j][k]
+                try:
+                    data_all_ans[i][j][k] = data_all[i][j][k]
+                except IndexError:
+                    data_all_ans[i][j][k] = 0
     tag_all_ans = np.array(tag_all)[:, 8:11]
     # tag 带时序
     # tag_all_ans = torch.ones((len(tag_all_ans), LSTMConfig.time_step, len(tag_all[0])))
@@ -74,12 +77,21 @@ def load_data(start, end, data_dir="AI_magic_data"):
     #             tag_all_ans[i][j][k] = tag_all[i][k]
 
     # tag不带时序
-    tag_all_ans = torch.ones((len(tag_all_ans), len(tag_all[0])))
+    tag_all_ans = torch.zeros((len(tag_all_ans), len(tag_all[0])))
     for i in range(len(tag_all)):
         for k in range(len(tag_all[0])):
             tag_all_ans[i][k] = tag_all[i][k]
 
-    # !!!分开归一化
+    # !!!分开按照各个特征归一化
+    # for i in range(data_all_ans.shape[-1]):
+    #     temp = data_all_ans[..., i].shape
+    #     temp1 = data_all_ans[..., i].flatten()
+    #     data_all_ans[..., i] = normalize_data(data_all_ans[..., i].reshape(len(temp1), 1)).reshape(temp)
+    #
+    # for i in range(3):
+    #     temp = tag_all_ans[:, i].shape
+    #     temp1 = tag_all_ans[:, i].flatten()
+    #     tag_all_ans[:, i] = normalize_data(tag_all_ans[:, i].reshape(len(temp1), 1)).reshape(temp)
     # for i in range(len(data_all_ans)):
     #     for j in range(len(data_all_ans[0])):
     #         print(data_all_ans[:, j].shape)
