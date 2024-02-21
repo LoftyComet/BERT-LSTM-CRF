@@ -100,7 +100,7 @@ def bilstm_train_and_eval(train_data, dev_data, test_data):
         temp = math.sqrt((test_tag_lists[i][0] - pred_tag_lists[i][0])**2 + (test_tag_lists[i][1] - pred_tag_lists[i][1])**2 + (test_tag_lists[i][2] - pred_tag_lists[i][2])**2)
         print(temp)
         ans.append(temp)
-    print(np.mean(ans))
+    print("训练集中预测位置与真实位置的平均距离为", np.mean(ans))
 
     metrics = Metrics(test_tag_lists, pred_tag_lists)
     metrics.report_scores()

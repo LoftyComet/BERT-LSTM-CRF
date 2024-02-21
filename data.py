@@ -49,8 +49,8 @@ def load_data(start, end, data_dir="AI_magic_data"):
                 data_per_case2 = np.hstack((data_per_case2, finger_characteristic))
                 if len(data_per_case) >= LSTMConfig.time_step:
                     # 只需要确定时间跨度的数据
-                    data_per_case = data_per_case[-(1 + LSTMConfig.time_step):-1-int((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
-                    data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step):-1-int((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+                    data_per_case = data_per_case[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+                    data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
 
                     data_all.append(extend_data(data_per_case, data_per_case2))
                     tag_all.append(tag_per_case[0][9:12])
@@ -99,8 +99,8 @@ def load_data(start, end, data_dir="AI_magic_data"):
     # for i in range(len(tag_all_ans)):
     #     for j in range(len(tag_all_ans[0])):
     #         tag_all_ans[:, j] = normalize_data(tag_all_ans[:, j])
-    # return normalize_data(data_all_ans), normalize_data(tag_all_ans)
-    return data_all_ans, tag_all_ans
+    return normalize_data(data_all_ans), normalize_data(tag_all_ans)
+    # return data_all_ans, tag_all_ans
 
 
 def divide_data(data, tag):
