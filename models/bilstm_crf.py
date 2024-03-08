@@ -61,7 +61,7 @@ class LstmModel(object):
                 # 每print_step打印一次
                 if self.step % TrainingConfig.print_step == 0:
                     total_step = (len(word_lists) // B + 1)
-                    print("Epoch {}, step/total_step: {}/{} {:.2f}% Loss:{:.4f}".format(
+                    print("Epoch {}, step/total_step: {}/{} {:.2f}% Loss:{:.8f}".format(
                         e, self.step, total_step,
                         100. * self.step / total_step,
                         losses / self.print_step
@@ -71,7 +71,7 @@ class LstmModel(object):
             # 每轮结束测试在验证集上的性能，保存最好的一个
             val_loss = self.validate(
                 dev_word_lists, dev_tag_lists)
-            print("Epoch {}, Val Loss:{:.4f}".format(e, val_loss))
+            print("Epoch {}, Val Loss:{:.8f}".format(e, val_loss))
 
     def train_step(self, batch_sents, batch_tags):
         self.model.train()
@@ -85,7 +85,7 @@ class LstmModel(object):
         batch_sents = batch_sents.to(self.device)
 
         targets = batch_tags.to(self.device)
-        # 从BiLSTM层获得发射得分
+        # 从LSTM层获得发射得分
         # 前向传播
         scores = self.model(batch_sents, LSTMConfig.time_step)
         # 计算损失 更新参数
@@ -140,39 +140,14 @@ class LstmModel(object):
 
         return pred_tag_lists, tag_lists
 
-    def get_pre(self, word_lists, word2id, tag2id, bert=False):
-        """web程序调用模型的接口"""
-        tensorized_sents, lengths = tensorized(word_lists, word2id)
-        if bert:
-            tokenizer = BertTokenizer.from_pretrained('pretrained_bert_models')
-            list_batch_sents = list(word_lists)
-            batch_sentence = []
-            for sentence in list_batch_sents:
-                temp = ''
-                for word in sentence:
-                    temp = temp + word
-                batch_sentence.append(temp)
-
-            batch = tokenizer(batch_sentence, padding=True, return_tensors="pt").to(self.device)
-            tensorized_sents = self.bert_model(input_ids=batch['input_ids'])[0].to(self.device)
-        else:
-            tensorized_sents, lengths = tensorized(word_lists, word2id)
-            tensorized_sents = tensorized_sents.to(self.device)
+    def get_pre(self, word_lists):
+        """预测的接口"""
+        # 准备数据
+        tensorized_sents = word_lists.to(self.device)
         self.best_model.eval()
         with torch.no_grad():
-            batch_tagids = self.best_model.test(
-                tensorized_sents, lengths, tag2id, bert=bert)
-            # 将id转化为标注
-            pred_tag_lists = []
-            id2tag = dict((id_, tag) for tag, id_ in tag2id.items())
-            for i, ids in enumerate(batch_tagids):
-                tag_list = []
-                if self.crf:
-                    for j in range(lengths[i] - 1):  # crf解码过程中，end被舍弃
-                        tag_list.append(id2tag[ids[j].item()])
-                else:
-                    for j in range(lengths[i]):
-                        tag_list.append(id2tag[ids[j].item()])
-                pred_tag_lists.append(tag_list)
+            batch_tag = self.best_model.test(tensorized_sents, LSTMConfig.time_step)
+
+        pred_tag_lists = batch_tag
 
         return pred_tag_lists

@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 from models.bilstm_crf import LstmModel
-from utils import save_model, flatten_lists
+from utils import save_model, draw_point
 from evaluating import Metrics
 
 
@@ -100,7 +100,9 @@ def bilstm_train_and_eval(train_data, dev_data, test_data):
         temp = math.sqrt((test_tag_lists[i][0] - pred_tag_lists[i][0])**2 + (test_tag_lists[i][1] - pred_tag_lists[i][1])**2 + (test_tag_lists[i][2] - pred_tag_lists[i][2])**2)
         print(temp)
         ans.append(temp)
-    print("训练集中预测位置与真实位置的平均距离为", np.mean(ans))
+
+    draw_point(pred_tag_lists, test_tag_lists)
+    print("测试集中预测位置与真实位置的平均距离为", np.mean(ans))
 
     metrics = Metrics(test_tag_lists, pred_tag_lists)
     metrics.report_scores()

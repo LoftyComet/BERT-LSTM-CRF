@@ -2,7 +2,7 @@
 一些工具函数
 """
 import pickle
-
+import pyvista as pv
 
 def merge_maps(dict1, dict2):
     """用于合并两个word2id或者两个tag2id"""
@@ -61,3 +61,64 @@ def flatten_lists(lists):
         else:
             flatten_list.append(l)
     return flatten_list
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+def map_to_color(value, vmin, vmax, cmap_name='jet'):
+    """
+    将数字映射到颜色。
+
+    参数：
+    - value: 要映射的数字值
+    - vmin: 数据中的最小值
+    - vmax: 数据中的最大值
+    - cmap_name: 要使用的颜色映射名称，默认为'viridis'
+
+    返回值：
+    - color: 映射到的颜色值，格式为(R, G, B, A)，每个通道的值在0到1之间
+    """
+    cmap = plt.get_cmap(cmap_name)  # 获取颜色映射对象
+    norm = plt.Normalize(vmin, vmax)  # 创建归一化器
+
+    # 将值映射到[0, 1]范围
+    normalized_value = norm(value)
+
+    # 根据归一化后的值获取对应的颜色
+    color = cmap(normalized_value)
+
+    return color
+
+
+def draw_point(pred_tag_lists, test_tag_lists):
+    p = pv.Plotter()
+    # 预测点
+    for qq in range(len(pred_tag_lists)):
+        point = [pred_tag_lists[qq][0], pred_tag_lists[qq][1], pred_tag_lists[qq][2]]
+        mesh = pv.PolyData(point)  # PolyData对象的实例化
+        p.add_mesh(mesh, color=map_to_color(qq, 0, len(test_tag_lists)), point_size=5)
+
+    # 目标球
+    for q1 in range(len(test_tag_lists)):
+        sphere = pv.Sphere(radius=0.02, center=(test_tag_lists[q1][0], test_tag_lists[q1][1], test_tag_lists[q1][2]))
+        p.add_mesh(sphere, color=map_to_color(q1, 0, len(test_tag_lists)), opacity=0.5)
+
+    p.camera_position = 'xy'
+    p.show_grid()
+    p.show(cpos="xy")
+
+
+def draw_finger(x, y, z, loc):
+    p = pv.Plotter()
+    # 预测点
+    for qq in range(len(x)):
+        point = [x[qq], y[qq], z[qq]]
+        mesh = pv.PolyData(point)  # PolyData对象的实例化
+        p.add_mesh(mesh, color=map_to_color(qq, 0, len(x)), point_size=5)
+    sphere = pv.Sphere(radius=0.02, center=loc)
+    p.add_mesh(sphere, opacity=0.5)
+    p.camera_position = 'xy'
+    p.show_grid()
+    p.show(cpos="xy")

@@ -60,14 +60,24 @@ def load_data(start, end, data_dir="AI_magic_data"):
                 print("case", i, "被完全去除了")
 
     # 转换为tensor
-    data_all_ans = torch.zeros((len(data_all), len(data_all[0]), len(data_all[0][0])))
+    # data_all_ans = torch.zeros((len(data_all), len(data_all[0]), len(data_all[0][0])))
+    # for i in range(len(data_all)):
+    #     for j in range(len(data_all[0])):
+    #         for k in range(len(data_all[0][0])):
+    #             try:
+    #                 data_all_ans[i][j][k] = data_all[i][j][k]
+    #             except IndexError:
+    #                 data_all_ans[i][j][k] = 0
+
+    data_all_ans = torch.zeros((len(data_all), len(data_all[0][0]), len(data_all[0])))
     for i in range(len(data_all)):
         for j in range(len(data_all[0])):
             for k in range(len(data_all[0][0])):
                 try:
-                    data_all_ans[i][j][k] = data_all[i][j][k]
+                    data_all_ans[i][k][j] = data_all[i][j][k]
                 except IndexError:
-                    data_all_ans[i][j][k] = 0
+                    data_all_ans[i][k][j] = 0
+
     tag_all_ans = np.array(tag_all)[:, 8:11]
     # tag 带时序
     # tag_all_ans = torch.ones((len(tag_all_ans), LSTMConfig.time_step, len(tag_all[0])))
@@ -99,8 +109,8 @@ def load_data(start, end, data_dir="AI_magic_data"):
     # for i in range(len(tag_all_ans)):
     #     for j in range(len(tag_all_ans[0])):
     #         tag_all_ans[:, j] = normalize_data(tag_all_ans[:, j])
-    return normalize_data(data_all_ans), normalize_data(tag_all_ans)
-    # return data_all_ans, tag_all_ans
+    # return normalize_data(data_all_ans), normalize_data(tag_all_ans)
+    return data_all_ans, tag_all_ans
 
 
 def divide_data(data, tag):
@@ -124,12 +134,12 @@ def extend_data(eye, hand):
     :param hand:
     :return:
     """
-    # 按列取 左开右闭
+    # 按列取 左闭右开
     t1 = eye[:, 2:17]
     # 在手部数据再筛选一些，只需要手掌手腕和最重要的食指数据
     t2 = hand[:, 2:8]
-    t3 = hand[:, 20:35]  # 2:68
-    t4 = hand[:, -9:-1]
+    t3 = hand[:, 20:35]
+    t4 = hand[:, -21:-1]
     t2 = np.hstack((t2, t3))
     t2 = np.hstack((t2, t4))
     return np.hstack((t1, t2))
@@ -155,11 +165,15 @@ def get_characteristic(ori_data, start, end):
     :return:添加后的特征附在最后
     """
     t1 = ori_data[:, start:end]
-    t2 = np.zeros((len(t1), 2), dtype=float)
+    t2 = np.zeros((len(t1), 5), dtype=float)
     # 前两组数据不足，速度加速度都是0
     for i in range(2, len(t1)):
         t2[i][0] = math.sqrt((t1[i-1][0] - t1[i][0])**2 + (t1[i-1][1] - t1[i][1])**2 + (t1[i-1][2] - t1[i][2])**2) / 0.02
         t2[i][1] = math.sqrt(((t1[i][0] - t1[i-1][0]) / 0.02 - (t1[i-1][0] - t1[i-2][0]) / 0.02)**2 + ((t1[i][1] - t1[i-1][1]) / 0.02 - (t1[i-1][1] - t1[i-2][1]) / 0.02)**2 + ((t1[i][2] - t1[i-1][2]) / 0.02 - (t1[i-1][2] - t1[i-2][2]) / 0.02)**2) / 0.02
+        # 这3列是方向
+        t2[i][2] = t1[i][0] - t1[i - 1][0]
+        t2[i][2] = t1[i][1] - t1[i - 1][1]
+        t2[i][2] = t1[i][2] - t1[i - 1][2]
     return t2
 
 

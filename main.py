@@ -11,7 +11,7 @@ def main():
     # 读取数据
     print("读取数据...")
     # 左闭右闭
-    data, tag = load_data(6, 6)
+    data, tag = load_data(1, 3)
     (train_lists, train_tag_lists), (dev_lists, dev_tag_lists), (test_lists, test_tag_lists) = divide_data(data, tag)
     # 训练评估LSTM模型
     print("正在训练评估LSTM模型...")
