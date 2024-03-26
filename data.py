@@ -14,6 +14,16 @@ from models.config import LSTMConfig
 from sklearn.model_selection import train_test_split
 
 
+def del_tensor_ele_n(arr, index, n):
+    """
+    arr: 输入tensor
+    index: 需要删除位置的索引
+    n: 从index开始，需要删除的行数
+    """
+    arr1 = arr[0:index]
+    arr2 = arr[index + n:]
+    return torch.cat((arr1, arr2), dim=0)
+
 def load_data(start, end, data_dir="AI_magic_data"):
     """加载数据
 
@@ -26,9 +36,9 @@ def load_data(start, end, data_dir="AI_magic_data"):
     tag_all = []
     for dataIndex in range(start, end + 1):
         prefix = data_dir + "\\" + str(dataIndex) + "\\"
-        df = pd.read_csv(prefix + "Eye.csv", encoding="utf-8")
-        df2 = pd.read_csv(prefix + "Hand.csv", encoding="utf-8")
-        df_tag = pd.read_csv(prefix + "Round.csv", encoding="utf-8")
+        df = pd.read_csv(prefix + "Eye.csv", encoding="utf-8").interpolate()  # 线性插值处理缺失值
+        df2 = pd.read_csv(prefix + "Hand.csv", encoding="utf-8").interpolate()
+        df_tag = pd.read_csv(prefix + "Round.csv", encoding="utf-8").interpolate()
         data_per_person = df.groupby('Case')
         data_per_person2 = df2.groupby('Case')
         tag_per_person = df_tag.groupby('Case')
@@ -38,24 +48,38 @@ def load_data(start, end, data_dir="AI_magic_data"):
                 data_per_case = np.array(data_per_person.get_group(i).reset_index())
                 data_per_case2 = np.array(data_per_person2.get_group(i).reset_index())
                 tag_per_case = np.array(tag_per_person.get_group(i).reset_index())
-                eye_characteristic = get_characteristic(data_per_case, 2, 5)
-                eye_move_characteristic = get_characteristic(data_per_case, 5, 8)
-                head_characteristic = get_characteristic(data_per_case, 11, 14)
-                finger_characteristic = get_characteristic(data_per_case2, 32, 35)
+                eye_characteristic = get_characteristic(data_per_case, 3, 6)
+                eye_move_characteristic = get_characteristic(data_per_case, 6, 9)
+                head_characteristic = get_characteristic(data_per_case, 12, 15)
+                finger_characteristic = get_characteristic(data_per_case2, 33, 36)
                 # 全加在hand后面
                 data_per_case2 = np.hstack((data_per_case2, eye_characteristic))
                 data_per_case2 = np.hstack((data_per_case2, eye_move_characteristic))
                 data_per_case2 = np.hstack((data_per_case2, head_characteristic))
                 data_per_case2 = np.hstack((data_per_case2, finger_characteristic))
-                if len(data_per_case) >= LSTMConfig.time_step:
-                    # 只需要确定时间跨度的数据
-                    data_per_case = data_per_case[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
-                    data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+                # 前六组数据停止时间有问题，矫正一下
+                if dataIndex in range(1, 8):
+                    if len(data_per_case) >= LSTMConfig.time_step + 12:
+                        # 只需要确定时间跨度的数据
+                        data_per_case = data_per_case[-(1 + LSTMConfig.time_step + 12):-1 - 12 - round(
+                            (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+                        data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step + 12):-1 - 12 - round(
+                            (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
 
-                    data_all.append(extend_data(data_per_case, data_per_case2))
-                    tag_all.append(tag_per_case[0][9:12])
+                        data_all.append(extend_data(data_per_case, data_per_case2))
+                        tag_all.append(tag_per_case[0][9:12])
+                    else:
+                        print("太短辣！")
                 else:
-                    print("太短辣！")
+                    if len(data_per_case) >= LSTMConfig.time_step:
+                        # 只需要确定时间跨度的数据
+                        data_per_case = data_per_case[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+                        data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+
+                        data_all.append(extend_data(data_per_case, data_per_case2))
+                        tag_all.append(tag_per_case[0][9:12])
+                    else:
+                        print("太短辣！")
             except KeyError:
                 print("case", i, "被完全去除了")
 
@@ -68,7 +92,7 @@ def load_data(start, end, data_dir="AI_magic_data"):
     #                 data_all_ans[i][j][k] = data_all[i][j][k]
     #             except IndexError:
     #                 data_all_ans[i][j][k] = 0
-
+    jump_time = []
     data_all_ans = torch.zeros((len(data_all), len(data_all[0][0]), len(data_all[0])))
     for i in range(len(data_all)):
         for j in range(len(data_all[0])):
@@ -77,6 +101,7 @@ def load_data(start, end, data_dir="AI_magic_data"):
                     data_all_ans[i][k][j] = data_all[i][j][k]
                 except IndexError:
                     data_all_ans[i][k][j] = 0
+                    jump_time.append(i)
 
     tag_all_ans = np.array(tag_all)[:, 8:11]
     # tag 带时序
@@ -110,6 +135,10 @@ def load_data(start, end, data_dir="AI_magic_data"):
     #     for j in range(len(tag_all_ans[0])):
     #         tag_all_ans[:, j] = normalize_data(tag_all_ans[:, j])
     # return normalize_data(data_all_ans), normalize_data(tag_all_ans)
+    for i in jump_time:
+        del_tensor_ele_n(data_all_ans, i, 1)
+        del_tensor_ele_n(tag_all_ans, i, 1)
+    print(data_all_ans)
     return data_all_ans, tag_all_ans
 
 
@@ -134,11 +163,11 @@ def extend_data(eye, hand):
     :param hand:
     :return:
     """
-    # 按列取 左闭右开
-    t1 = eye[:, 2:17]
+    # 按列取 左闭右开 要+1，因为取数时前面会多一行序号
+    t1 = eye[:, 3:18]
     # 在手部数据再筛选一些，只需要手掌手腕和最重要的食指数据
-    t2 = hand[:, 2:8]
-    t3 = hand[:, 20:35]
+    t2 = hand[:, 3:9]
+    t3 = hand[:, 21:36]
     t4 = hand[:, -21:-1]
     t2 = np.hstack((t2, t3))
     t2 = np.hstack((t2, t4))
@@ -172,8 +201,8 @@ def get_characteristic(ori_data, start, end):
         t2[i][1] = math.sqrt(((t1[i][0] - t1[i-1][0]) / 0.02 - (t1[i-1][0] - t1[i-2][0]) / 0.02)**2 + ((t1[i][1] - t1[i-1][1]) / 0.02 - (t1[i-1][1] - t1[i-2][1]) / 0.02)**2 + ((t1[i][2] - t1[i-1][2]) / 0.02 - (t1[i-1][2] - t1[i-2][2]) / 0.02)**2) / 0.02
         # 这3列是方向
         t2[i][2] = t1[i][0] - t1[i - 1][0]
-        t2[i][2] = t1[i][1] - t1[i - 1][1]
-        t2[i][2] = t1[i][2] - t1[i - 1][2]
+        t2[i][3] = t1[i][1] - t1[i - 1][1]
+        t2[i][4] = t1[i][2] - t1[i - 1][2]
     return t2
 
 

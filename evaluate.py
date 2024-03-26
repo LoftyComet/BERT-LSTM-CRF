@@ -8,6 +8,7 @@ from collections import Counter
 import numpy as np
 import torch
 
+from models.config import LSTMConfig
 from models.bilstm_crf import LstmModel
 from utils import save_model, draw_point
 from evaluating import Metrics
@@ -82,7 +83,7 @@ def bilstm_train_and_eval(train_data, dev_data, test_data):
     test_tag_lists = test_data[1]
     lstm_model.train(train_lists, train_tag_lists,
                      dev_lists, dev_tag_lists)
-    model_name = "lstm_"
+    model_name = "lstm_" + str(int(LSTMConfig.completion_percentage * 100))
     save_model(lstm_model, "./model_saved/" + model_name + ".pkl")
     print("训练完毕,共用时{}秒.".format(int(time.time() - start)))
     torch.cuda.empty_cache()

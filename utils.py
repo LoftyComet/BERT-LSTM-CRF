@@ -122,3 +122,22 @@ def draw_finger(x, y, z, loc):
     p.camera_position = 'xy'
     p.show_grid()
     p.show(cpos="xy")
+
+
+def draw_error(pred_tag_lists, test_tag_lists, distances):
+    p = pv.Plotter()
+    points = []
+    cmap = 'bwr'
+    for index, value in enumerate(distances):
+        if value > 0.10:
+            distances[index] = 0.10
+
+    # 目标点
+    for qq in range(len(test_tag_lists)):
+        point = [test_tag_lists[qq][0], test_tag_lists[qq][1], test_tag_lists[qq][2]]
+        points.append(point)
+    mesh = pv.PolyData(points)  # PolyData对象的实例化
+    p.add_mesh(mesh, scalars=distances, cmap=cmap, point_size=5)
+
+    p.camera_position = 'xy'
+    p.show(cpos="xy")

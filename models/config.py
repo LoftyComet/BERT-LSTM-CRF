@@ -11,7 +11,7 @@ print("计算设备为", device)
 
 # 设置lstm训练参数
 class TrainingConfig(object):
-    batch_size = 8
+    batch_size = 32
     # 学习速率
     lr = 0.001
     epochs = 100
@@ -21,8 +21,8 @@ class TrainingConfig(object):
 class LSTMConfig(object):
     hidden_size = 64  # lstm隐向量的维数
     num_layers = 2  # lstm层数
-    time_step = 42  # 时间步长 !!!暂定20
+    time_step = 30  # 时间步长 !!!暂定20
     input_size = 56
     out_size = 3
-    completion_percentage = 0.6  # 选择过程完成的百分比
+    completion_percentage = 0.9  # 选择过程完成的百分比
 
