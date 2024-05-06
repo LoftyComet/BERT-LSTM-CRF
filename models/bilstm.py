@@ -27,7 +27,7 @@ class LSTM(nn.Module):
         #     nn.Linear(hidden_dim, output_dim)
         # )
 
-    def forward(self, scents_tensor, length):
+    def forward(self, scents_tensor):
         emb = scents_tensor
         # packed = pack_padded_sequence(emb, lengths, batch_first=True)  # [Batch_size, Length, out_size]
         # rnn_out, _ = self.lstm(packed)
@@ -41,9 +41,9 @@ class LSTM(nn.Module):
 
         return scores
 
-    def test(self, scents_tensor, length):
+    def test(self, scents_tensor):
         """第三个参数不会用到，加它是为了与BiLSTM_CRF保持同样的接口"""
-        logit = self.forward(scents_tensor, length)  # [B, L, out_size]
+        logit = self.forward(scents_tensor)  # [B, L, out_size]
         # _, batch_tagids = torch.max(logits, dim=2)
 
         return logit

@@ -14,15 +14,15 @@ class TrainingConfig(object):
     batch_size = 32
     # 学习速率
     lr = 0.001
-    epochs = 100
+    epochs = 200
     print_step = 1
 
 
 class LSTMConfig(object):
     hidden_size = 64  # lstm隐向量的维数
     num_layers = 2  # lstm层数
-    time_step = 30  # 时间步长 !!!暂定20
-    input_size = 56
+    time_step = 30  # 时间步长 !!!
+    input_size = 27
     out_size = 3
-    completion_percentage = 0.9  # 选择过程完成的百分比
+    completion_percentage = 0.8  # 选择过程完成的百分比
 

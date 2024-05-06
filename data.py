@@ -48,15 +48,18 @@ def load_data(start, end, data_dir="AI_magic_data"):
                 data_per_case = np.array(data_per_person.get_group(i).reset_index())
                 data_per_case2 = np.array(data_per_person2.get_group(i).reset_index())
                 tag_per_case = np.array(tag_per_person.get_group(i).reset_index())
-                eye_characteristic = get_characteristic(data_per_case, 3, 6)
-                eye_move_characteristic = get_characteristic(data_per_case, 6, 9)
-                head_characteristic = get_characteristic(data_per_case, 12, 15)
-                finger_characteristic = get_characteristic(data_per_case2, 33, 36)
+                # eye_characteristic = get_characteristic(data_per_case, 3, 6)
+                # eye_move_characteristic = get_characteristic(data_per_case, 6, 9)
+                # head_characteristic = get_characteristic(data_per_case, 12, 15)
+                # head_move_characteristic = get_characteristic(data_per_case, 15, 18)
+                # finger_characteristic = get_characteristic(data_per_case2, 33, 36)
                 # 全加在hand后面
-                data_per_case2 = np.hstack((data_per_case2, eye_characteristic))
-                data_per_case2 = np.hstack((data_per_case2, eye_move_characteristic))
-                data_per_case2 = np.hstack((data_per_case2, head_characteristic))
-                data_per_case2 = np.hstack((data_per_case2, finger_characteristic))
+                # data_per_case2 = np.hstack((data_per_case2, eye_characteristic))
+                # data_per_case2 = np.hstack((data_per_case2, eye_move_characteristic))
+                # data_per_case2 = np.hstack((data_per_case2, head_characteristic))
+                # data_per_case2 = np.hstack((data_per_case2, head_move_characteristic))
+                # data_per_case2 = np.hstack((data_per_case2, finger_characteristic))
+
                 # 前六组数据停止时间有问题，矫正一下
                 if dataIndex in range(1, 8):
                     if len(data_per_case) >= LSTMConfig.time_step + 12:
@@ -102,6 +105,7 @@ def load_data(start, end, data_dir="AI_magic_data"):
                 except IndexError:
                     data_all_ans[i][k][j] = 0
                     jump_time.append(i)
+                    print("有0")
 
     tag_all_ans = np.array(tag_all)[:, 8:11]
     # tag 带时序
@@ -135,11 +139,11 @@ def load_data(start, end, data_dir="AI_magic_data"):
     #     for j in range(len(tag_all_ans[0])):
     #         tag_all_ans[:, j] = normalize_data(tag_all_ans[:, j])
     # return normalize_data(data_all_ans), normalize_data(tag_all_ans)
-    for i in jump_time:
-        del_tensor_ele_n(data_all_ans, i, 1)
-        del_tensor_ele_n(tag_all_ans, i, 1)
-    print(data_all_ans)
-    return data_all_ans, tag_all_ans
+    # for i in jump_time:
+    #     del_tensor_ele_n(data_all_ans, i, 1)
+    #     del_tensor_ele_n(tag_all_ans, i, 1)
+    # print(data_all_ans)
+    return data_all_ans, tag_all_ans # [num, input_size, time_step]
 
 
 def divide_data(data, tag):
@@ -164,13 +168,18 @@ def extend_data(eye, hand):
     :return:
     """
     # 按列取 左闭右开 要+1，因为取数时前面会多一行序号
-    t1 = eye[:, 3:18]
+    t1 = eye[:, 3:6]
+    t12 = eye[:, 9:15]
+    t1 = np.hstack((t1, t12))
     # 在手部数据再筛选一些，只需要手掌手腕和最重要的食指数据
-    t2 = hand[:, 3:9]
-    t3 = hand[:, 21:36]
-    t4 = hand[:, -21:-1]
+    t2 = hand[:, 0:6]
+    t22 = hand[:, 18:27]
+    t2 = np.hstack((t2, t22))
+    t3 = hand[:, 60:63]
+
+    t4 = hand[:, -26:-1]
     t2 = np.hstack((t2, t3))
-    t2 = np.hstack((t2, t4))
+    # t2 = np.hstack((t2, t4))
     return np.hstack((t1, t2))
 
 
@@ -196,13 +205,13 @@ def get_characteristic(ori_data, start, end):
     t1 = ori_data[:, start:end]
     t2 = np.zeros((len(t1), 5), dtype=float)
     # 前两组数据不足，速度加速度都是0
-    for i in range(2, len(t1)):
-        t2[i][0] = math.sqrt((t1[i-1][0] - t1[i][0])**2 + (t1[i-1][1] - t1[i][1])**2 + (t1[i-1][2] - t1[i][2])**2) / 0.02
-        t2[i][1] = math.sqrt(((t1[i][0] - t1[i-1][0]) / 0.02 - (t1[i-1][0] - t1[i-2][0]) / 0.02)**2 + ((t1[i][1] - t1[i-1][1]) / 0.02 - (t1[i-1][1] - t1[i-2][1]) / 0.02)**2 + ((t1[i][2] - t1[i-1][2]) / 0.02 - (t1[i-1][2] - t1[i-2][2]) / 0.02)**2) / 0.02
-        # 这3列是方向
-        t2[i][2] = t1[i][0] - t1[i - 1][0]
-        t2[i][3] = t1[i][1] - t1[i - 1][1]
-        t2[i][4] = t1[i][2] - t1[i - 1][2]
+    # for i in range(2, len(t1)):
+    #     t2[i][0] = math.sqrt(pow((t1[i-1][0] - t1[i][0]), 2) + pow((t1[i-1][1] - t1[i][1]), 2) + pow((t1[i-1][2] - t1[i][2]), 2)) / 0.02
+    #     t2[i][1] = math.sqrt(pow(((t1[i][0] - t1[i-1][0]) / 0.02 - (t1[i-1][0] - t1[i-2][0]) / 0.02), 2) + pow(((t1[i][1] - t1[i-1][1]) / 0.02 - (t1[i-1][1] - t1[i-2][1]) / 0.02), 2) + pow(((t1[i][2] - t1[i-1][2]) / 0.02 - (t1[i-1][2] - t1[i-2][2]) / 0.02), 2)) / 0.02
+    #     # 这3列是方向
+    #     t2[i][2] = t1[i][0] - t1[i - 1][0]
+    #     t2[i][3] = t1[i][1] - t1[i - 1][1]
+    #     t2[i][4] = t1[i][2] - t1[i - 1][2]
     return t2
 
 

@@ -14,7 +14,7 @@ from sklearn.metrics import r2_score
 
 
 
-data, tag = load_data(1, 15)
+data, tag = load_data(20, 20)
 (train_lists, train_tag_lists), (dev_lists, dev_tag_lists), (test_lists, test_tag_lists) = divide_data(data, tag)
 
 
@@ -24,16 +24,17 @@ def get_pre(to_pre):
 
     :return: pred_tag_lists, [[x, y, z]]
     """
-    lstm_model = load_model('./model_saved/lstm_' + str(int(LSTMConfig.completion_percentage * 100)) + '.pkl')
-    torch.onnx.export(lstm_model, to_pre[0], './model_saved/lstm_' + str(int(LSTMConfig.completion_percentage * 100)) + '.onnx', export_params=True, verbose=False, input_names=None,
+    lstm_model = load_model('./model_saved/lstm_2' + str(int(LSTMConfig.completion_percentage * 100)) + '.pkl')
+    data = torch.zeros(1, LSTMConfig.input_size, round(
+                            LSTMConfig.completion_percentage * LSTMConfig.time_step))
+    torch.onnx.export(lstm_model, data, './model_saved/lstm_2' + str(int(LSTMConfig.completion_percentage * 100)) + '.onnx', export_params=True, verbose=False, input_names=None,
                       output_names=None, do_constant_folding=True, dynamic_axes=None, opset_version=9)
 
-    lstm_model.model.lstm.flatten_parameters()  # remove warning
-    pred_tag_lists, _ = lstm_model.test(
-        to_pre, 1)
+    lstm_model.lstm.flatten_parameters()  # remove warning
+    pred_tag_lists = lstm_model.forward(to_pre)
 
-    pred_tag_lists = pred_tag_lists.numpy()
-
+    pred_tag_lists = pred_tag_lists.detach().numpy()
+    print("输出成功!")
     return pred_tag_lists
 
 trigger_dis = []

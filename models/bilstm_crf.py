@@ -87,7 +87,7 @@ class LstmModel(object):
         targets = batch_tags.to(self.device)
         # 从LSTM层获得发射得分
         # 前向传播
-        scores = self.model(batch_sents, LSTMConfig.time_step)
+        scores = self.model(batch_sents)
         # 计算损失 更新参数
         # step1 清空梯度
         self.optimizer.zero_grad()
@@ -114,7 +114,7 @@ class LstmModel(object):
                 targets = batch_tags.to(self.device)
                 # forward
                 # print("传入的lengths参数", lengths)
-                scores = self.model(batch_sents, LSTMConfig.time_step)
+                scores = self.model(batch_sents)
 
                 # 计算损失
                 loss = self.cal_loss_func(scores, targets).to(self.device)
@@ -134,7 +134,7 @@ class LstmModel(object):
         tensorized_sents = word_lists.to(self.device)
         self.best_model.eval()
         with torch.no_grad():
-            batch_tag = self.best_model.test(tensorized_sents, LSTMConfig.time_step)
+            batch_tag = self.best_model.test(tensorized_sents)
 
         pred_tag_lists = batch_tag
 
@@ -146,7 +146,7 @@ class LstmModel(object):
         tensorized_sents = word_lists.to(self.device)
         self.best_model.eval()
         with torch.no_grad():
-            batch_tag = self.best_model.test(tensorized_sents, LSTMConfig.time_step)
+            batch_tag = self.best_model.test(tensorized_sents)
 
         pred_tag_lists = batch_tag
 
