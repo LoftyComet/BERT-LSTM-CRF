@@ -4,10 +4,11 @@
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 from transformers.models.bert.modeling_bert import *
 from torch.nn.utils.rnn import pad_sequence
+from models.config import LSTMConfig
 
 
 class LSTM(nn.Module):
-    def __init__(self,  input_size, hidden_size, num_layers, time_step, completion_percentage, out_size):
+    def __init__(self,  input_size, hidden_size, num_layers, time_step, completion_percentage, out_size, dropout_prob=0.3):
         """初始化参数
 
         :param input_size:输入向量的维数
@@ -15,34 +16,34 @@ class LSTM(nn.Module):
         :param out_size:输出向量的维数
         """
         super(LSTM, self).__init__()
-        self.lstm = nn.LSTM(round(time_step * completion_percentage), hidden_size, num_layers=2, batch_first=True, dropout=0.3)
-        # 数据投影层，将BiLSTM输出的hidden_size维度的向量映射为输出标签的个数的维度
-        # self.lin = nn.Linear(round(time_step * completion_percentage) * hidden_size, out_size)
-        self.lin = nn.Linear(input_size * hidden_size, out_size)
-        # self.lstm = nn.LSTM(
-        #     input_dim, hidden_dim, num_layers, batch_first=True)
-        #
-        # !!!备用
-        # self.fc = nn.Sequential(
-        #     nn.Linear(hidden_dim, output_dim)
-        # )
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=0.2)
+        self.dropout = nn.Dropout(0.5)
+        self.fc = nn.Linear(hidden_size * time_step, out_size)
 
-    def forward(self, scents_tensor):
-        emb = scents_tensor
-        # packed = pack_padded_sequence(emb, lengths, batch_first=True)  # [Batch_size, Length, out_size]
-        # rnn_out, _ = self.lstm(packed)
-        # # rnn_out:[B, L, hidden_size*2]
-        # rnn_out, _ = pad_packed_sequence(rnn_out, batch_first=True)
-        rnn_out, _ = self.lstm(emb)
-        # rnn_out = self.dropout(rnn_out)
-        rnn_out2 = rnn_out.contiguous().view([rnn_out.size()[0], -1])
-        # 转换为标注种类的维度
-        scores = self.lin(rnn_out2)  # [B, L, out_size]
+        # super(LSTM, self).__init__()
+        # self.layer1 = nn.Linear(input_size, hidden_size)
+        # self.relu = nn.ReLU()
+        # self.layer2 = nn.Linear(hidden_size, output_size)
 
-        return scores
+    def forward(self, x):
+        x = x.to(LSTMConfig.device)
+        # x: [batch, time_step, input_size]
+        out, (h_n, c_n) = self.lstm(x)
+        # Apply dropout to the output of the LSTM layer
+        # out = self.dropout(out)
+
+        # Take the output from the last time step
+        # out = out[:, -1, :]
+
+        # Take the output from the all the time step
+        out = out.contiguous().view([out.size()[0], -1])
+        # Pass the output through the fully connected layer
+        out = self.fc(out)
+        return out
 
     def test(self, scents_tensor):
         """第三个参数不会用到，加它是为了与BiLSTM_CRF保持同样的接口"""
+        scents_tensor = scents_tensor.to(LSTMConfig.device)
         logit = self.forward(scents_tensor)  # [B, L, out_size]
         # _, batch_tagids = torch.max(logits, dim=2)
 

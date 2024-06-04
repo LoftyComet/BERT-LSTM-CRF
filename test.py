@@ -1,8 +1,12 @@
+import torch
+import numpy as np
 
-def fuc(a):
-    temp = [0, 0, 1, 1, 1, 3]
-    for i in range(6, a+1):
-        temp.append(temp[i-2] + temp[i-3] + temp[i-5])
-    return temp[a]
+arr1 = np.array([[1,2,3],[4,5,6]])
 
-print(fuc(100))
+
+
+tensor = torch.tensor(arr1)
+print(tensor)
+
+
+

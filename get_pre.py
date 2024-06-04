@@ -6,13 +6,13 @@ import numpy as np
 from data import load_data, divide_data
 from models.bilstm_crf import LstmModel
 from models.config import LSTMConfig
-from utils import load_model, draw_point, draw_finger, draw_error
+from utils import load_model, draw_point, draw_finger, draw_error, draw_points
 import matplotlib.pyplot as plt
 
 from sklearn.metrics import r2_score
 
 
-data, tag = load_data(20, 20)
+data, tag = load_data(21, 34, for_train=False)
 (train_lists, train_tag_lists), (dev_lists, dev_tag_lists), (test_lists, test_tag_lists) = divide_data(data, tag)
 
 
@@ -24,9 +24,10 @@ def get_pre(to_pre):
     """
     lstm_model = load_model('./model_saved/lstm_2' + str(int(LSTMConfig.completion_percentage * 100)) + '.pkl')
     # lstm_model.lstm.flatten_parameters()  # remove warning
+    to_pre = to_pre.to(LSTMConfig.device)
     pred_tag_lists = lstm_model.forward(to_pre)
 
-    pred_tag_lists = pred_tag_lists.detach().numpy()
+    pred_tag_lists = pred_tag_lists.cpu().detach().numpy()
 
     return pred_tag_lists
 
@@ -37,16 +38,16 @@ start_time = time.time()
 pred_tag_lists = get_pre(test_lists)
 for i, test_list in enumerate(test_lists):
     # 预测时手的位置
-    fingerX = test_list[24][-1]
-    fingerY = test_list[25][-1]
-    fingerZ = test_list[26][-1]
+    fingerX = test_list[-1][24]
+    fingerY = test_list[-1][25]
+    fingerZ = test_list[-1][26]
     temp = math.sqrt(
         (test_tag_lists[i][0] - fingerX) ** 2 + (test_tag_lists[i][1] - fingerY) ** 2 + (
                 test_tag_lists[i][2] - fingerZ) ** 2)
     trigger_dis.append(temp)
     temp2 = math.sqrt(
-        (test_list[24][0] - fingerX) ** 2 + (test_list[25][0] - fingerY) ** 2 + (
-                test_list[26][0] - fingerZ) ** 2)
+        (test_list[0][24] - fingerX) ** 2 + (test_list[0][25] - fingerY) ** 2 + (
+                test_list[0][26] - fingerZ) ** 2)
     tra_dis.append(temp2)
 print(np.mean(trigger_dis))
 print(np.mean(tra_dis))
@@ -76,19 +77,29 @@ for i in range(len(pred_tag_lists)):
     pred_tag_lists_y.append(pred_tag_lists[i][1])
     pred_tag_lists_z.append(pred_tag_lists[i][2])
 
+    temp2 = math.sqrt(
+        (test_lists[i][-1][24] - pred_tag_lists[i][0]) ** 2 + (test_lists[i][-1][25] - pred_tag_lists[i][1]) ** 2 + (
+                test_lists[i][-1][26] - pred_tag_lists[i][2]) ** 2)
+    print("手距离预测点距离", temp2)
+    # print(pred_tag_lists[i][3])
+
 
 print("测试集中预测位置与真实位置的平均距离为", np.mean(ans))
 print("X坐标R^2", r2_score(test_tag_lists_x, pred_tag_lists_x))
 print("Y坐标R^2", r2_score(test_tag_lists_y, pred_tag_lists_y))
 print("Z坐标R^2", r2_score(test_tag_lists_z, pred_tag_lists_z))
 
-# 画预测点和目标球
+# 画手的位置和要预测点
 # for i in range(len(train_lists)):
-#     draw_finger(train_lists[i][24], train_lists[i][25], train_lists[i][26], train_tag_lists[i])
-#     print(train_lists[i][24])
-#     print(train_tag_lists[i][0])
+#     draw_finger(train_lists[i][:, 24], train_lists[i][:, 25], train_lists[i][:, 26], train_tag_lists[i])
 
+# for i in range(len(train_lists)):
+#     draw_finger(test_lists[i][:, 24], test_lists[i][:, 25], test_lists[i][:, 26], pred_tag_lists[i])
+
+print("开始画图")
+# draw_points(train_tag_lists)
 draw_point(pred_tag_lists[:10], test_tag_lists[:10])
+
 
 # 预测点和目标球单独放一起
 # for i in range(len(pred_tag_lists)):
@@ -101,41 +112,41 @@ draw_error(pred_tag_lists, test_tag_lists, ans)
 fig, ax = plt.subplots(4, 1)
 fig.set_size_inches(10, 4)
 
-# ax[0].plot(range(len(test_tag_lists_x))[:40], test_tag_lists_x[:40], linewidth=1.5, linestyle='-', label='True')
-# ax[0].plot(range(len(pred_tag_lists_x))[:40], pred_tag_lists_x[:40], linewidth=1, linestyle='-.', label='Predicted')
-# ax[0].set_title("x")
-#
-# ax[1].plot(range(len(test_tag_lists_y))[:40], test_tag_lists_y[:40], linewidth=1.5, linestyle='-', label='True')
-# ax[1].plot(range(len(pred_tag_lists_y))[:40], pred_tag_lists_y[:40], linewidth=1, linestyle='-.', label='Predicted')
-# ax[1].set_title("y")
-#
-# ax[2].plot(range(len(test_tag_lists_z))[:40], test_tag_lists_z[:40], linewidth=1.5, linestyle='-', label='True')
-# ax[2].plot(range(len(pred_tag_lists_z))[:40], pred_tag_lists_z[:40], linewidth=1, linestyle='-.', label='Predicted')
-# ax[2].set_title("z")
-#
-# ax[3].plot(range(len(ans))[:40], zero[:40], linewidth=1.5, linestyle='-', label='True')
-# ax[3].plot(range(len(ans))[:40], ans[:40], linewidth=1, linestyle='-', label='Predicted')
-# ax[3].set_title("distance")
-# plt.legend()
-# plt.show()
-
-ax[0].plot(range(len(test_tag_lists_x)), test_tag_lists_x, linewidth=1.5, linestyle='-', label='True')
-ax[0].plot(range(len(pred_tag_lists_x)), pred_tag_lists_x, linewidth=1, linestyle='-.', label='Predicted')
+ax[0].bar(range(len(test_tag_lists_x))[:500], test_tag_lists_x[:500], linewidth=1.5, linestyle='-', label='True')
+ax[0].bar(range(len(pred_tag_lists_x))[:500], pred_tag_lists_x[:500], linewidth=1, linestyle='-.', label='Predicted')
 ax[0].set_title("x")
 
-ax[1].plot(range(len(test_tag_lists_y)), test_tag_lists_y, linewidth=1.5, linestyle='-', label='True')
-ax[1].plot(range(len(pred_tag_lists_y)), pred_tag_lists_y, linewidth=1, linestyle='-.', label='Predicted')
+ax[1].bar(range(len(test_tag_lists_y))[:500], test_tag_lists_y[:500], linewidth=1.5, linestyle='-', label='True')
+ax[1].bar(range(len(pred_tag_lists_y))[:500], pred_tag_lists_y[:500], linewidth=1, linestyle='-.', label='Predicted')
 ax[1].set_title("y")
 
-ax[2].plot(range(len(test_tag_lists_z)), test_tag_lists_z, linewidth=1.5, linestyle='-', label='True')
-ax[2].plot(range(len(pred_tag_lists_z)), pred_tag_lists_z, linewidth=1, linestyle='-.', label='Predicted')
+ax[2].bar(range(len(test_tag_lists_z))[:500], test_tag_lists_z[:500], linewidth=1.5, linestyle='-', label='True')
+ax[2].bar(range(len(pred_tag_lists_z))[:500], pred_tag_lists_z[:500], linewidth=1, linestyle='-.', label='Predicted')
 ax[2].set_title("z")
 
-ax[3].plot(range(len(ans)), zero, linewidth=1.5, linestyle='-', label='True')
-ax[3].plot(range(len(ans)), ans, linewidth=1, linestyle='-', label='Predicted')
+ax[3].bar(range(len(ans))[:500], zero[:500], linewidth=1.5, linestyle='-', label='True')
+ax[3].bar(range(len(ans))[:500], ans[:500], linewidth=1, linestyle='-', label='Predicted')
 ax[3].set_title("distance")
 plt.legend()
 plt.show()
+
+# ax[0].bar(range(len(test_tag_lists_x)), test_tag_lists_x, linewidth=1.5, linestyle='-', label='True')
+# ax[0].bar(range(len(pred_tag_lists_x)), pred_tag_lists_x, linewidth=1, linestyle='-.', label='Predicted')
+# ax[0].set_title("x")
+# 
+# ax[1].bar(range(len(test_tag_lists_y)), test_tag_lists_y, linewidth=1.5, linestyle='-', label='True')
+# ax[1].bar(range(len(pred_tag_lists_y)), pred_tag_lists_y, linewidth=1, linestyle='-.', label='Predicted')
+# ax[1].set_title("y")
+# 
+# ax[2].bar(range(len(test_tag_lists_z)), test_tag_lists_z, linewidth=1.5, linestyle='-', label='True')
+# ax[2].bar(range(len(pred_tag_lists_z)), pred_tag_lists_z, linewidth=1, linestyle='-.', label='Predicted')
+# ax[2].set_title("z")
+# 
+# ax[3].bar(range(len(ans)), zero, linewidth=1.5, linestyle='-', label='True')
+# ax[3].bar(range(len(ans)), ans, linewidth=1, linestyle='-', label='Predicted')
+# ax[3].set_title("distance")
+# plt.legend()
+# plt.show()
 
 for ans1 in ans:
     print(ans1)

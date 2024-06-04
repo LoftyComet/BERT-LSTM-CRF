@@ -110,22 +110,78 @@ def draw_point(pred_tag_lists, test_tag_lists):
     p.show(cpos="xy")
 
 
+def draw_points(train_tag_lists):
+    x_count = [0] * len(train_tag_lists)
+    x_list = []
+    points = []
+    p = pv.Plotter()
+    # 预测点
+    for qq in range(len(train_tag_lists)):
+
+        flag = -1
+        for i, x in enumerate(x_list):
+            if abs(float(list(train_tag_lists[qq])[0]) - float(x[0])) < 0.00001:
+                flag = i
+                break
+        if flag != -1:
+            x_count[flag] += 1
+
+        else:
+            x_count[len(x_list)] = 1
+            x_list.append(list(train_tag_lists[qq]))
+
+    x_count = x_count[0:len(x_list)]
+    maxvalue = max(x_count)
+    for i, x in enumerate(x_count):
+        if x > (maxvalue / 6):
+            x_count[i] = maxvalue / 6
+
+    for i, key in enumerate(x_list):
+        point = [key[0], key[1], -key[2]]
+        points.append(point)
+    mesh = pv.PolyData(points)  # PolyData对象的实例化
+    p.add_mesh(mesh, scalars=x_count, cmap='bwr', point_size=5)
+
+
+    p.camera_position = 'xy'
+    p.show_grid()
+    p.show(cpos="xy")
+    print(x_count)
+
 def draw_finger(x, y, z, loc):
     p = pv.Plotter()
     # 预测点
     for qq in range(len(x)):
         point = [x[qq], y[qq], z[qq]]
-        mesh = pv.PolyData(point)  # PolyData对象的实例化
-        p.add_mesh(mesh, color=map_to_color(qq, 0, len(x)), point_size=5)
+        # mesh = pv.PolyData(point)  # PolyData对象的实例化
+        # p.add_mesh(mesh, color=map_to_color(qq, 0, len(x)), point_size=5)
+
+        sphere = pv.Sphere(radius=0.005, center=point)
+        p.add_mesh(sphere, opacity=0.5)
+
     sphere = pv.Sphere(radius=0.02, center=loc)
     p.add_mesh(sphere, opacity=0.5)
-    p.camera_position = 'xy'
+    p.camera_position = 'yx'
     p.show_grid()
-    p.show(cpos="xy")
+    p.show(cpos="yz")
 
 
 def draw_error(pred_tag_lists, test_tag_lists, distances):
     p = pv.Plotter()
+
+    # 自定义坐标轴
+    p.add_axes(
+        interactive=True,
+        line_width=2,
+        color='black',
+        x_color='red',  # 设置X轴颜色
+        y_color='green',  # 设置Y轴颜色
+        z_color='blue',  # 设置Z轴颜色
+        xlabel='X Axis',  # 设置X轴标签
+        ylabel='Y Axis',  # 设置Y轴标签
+        zlabel='Z Axis'  # 设置Z轴标签
+    )
+
     points = []
     cmap = 'bwr'
     for index, value in enumerate(distances):
@@ -134,10 +190,10 @@ def draw_error(pred_tag_lists, test_tag_lists, distances):
 
     # 目标点
     for qq in range(len(test_tag_lists)):
-        point = [test_tag_lists[qq][0], test_tag_lists[qq][1], test_tag_lists[qq][2]]
+        point = [test_tag_lists[qq][0], test_tag_lists[qq][1], -test_tag_lists[qq][2]]
         points.append(point)
     mesh = pv.PolyData(points)  # PolyData对象的实例化
     p.add_mesh(mesh, scalars=distances, cmap=cmap, point_size=5)
-
+    p.show_grid()
     p.camera_position = 'xy'
     p.show(cpos="xy")

@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from .util import tensorized, sort_by_lengths, cal_loss, cal_lstm_crf_loss
-from .config import TrainingConfig, LSTMConfig, device
+from .config import TrainingConfig, LSTMConfig
 from .bilstm import LSTM
 
 
@@ -21,7 +21,7 @@ class LstmModel(object):
         """对LSTM的模型进行训练与测试
         """
 
-        self.device = device
+        self.device = LSTMConfig.device
 
         # 加载模型参数
         self.input_size = LSTMConfig.input_size
@@ -39,7 +39,7 @@ class LstmModel(object):
         self.batch_size = TrainingConfig.batch_size
 
         # 初始化优化器
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-5)
 
         # 初始化其他指标
         self.step = 0
