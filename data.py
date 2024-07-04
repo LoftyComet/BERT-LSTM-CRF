@@ -43,7 +43,8 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1):
     fig, ax = plt.subplots(3, 1)
     fig.set_size_inches(10, 4)
 
-    for dataIndex in range(start, end + 1):
+    for dataIndex in range(start, end + 1) or [21, 24, 27, 30, 31]:
+    # for dataIndex in range(start, end + 1):
         print("读取", dataIndex, "号被试数据")
         prefix = data_dir + "\\" + str(dataIndex) + "\\"
         df = pd.read_csv(prefix + "Eye.csv", encoding="utf-8").interpolate()  # 线性插值处理缺失值
@@ -72,74 +73,74 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1):
                 data_per_case2 = np.hstack((data_per_case2, finger_characteristic))
                 # data_per_case2 = np.hstack((data_per_case2, dir_char))
                 # 前六组数据停止时间有问题，矫正一下
-                if dataIndex in range(1, 8) or dataIndex in range(21, 50):
+                # if dataIndex in range(1, 8) or dataIndex in range(21, 50):
                 # if dataIndex in range(1, 8):
-                    if len(data_per_case) >= LSTMConfig.time_step:
-                        # 只需要确定时间跨度的数据
-                        # data_per_case = data_per_case[-(1 + LSTMConfig.time_step + 12):-1 - 12 - round(
-                        #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
-                        # data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step + 12):-1 - 12 - round(
-                        #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+                if len(data_per_case) >= LSTMConfig.time_step:
+                    # 只需要确定时间跨度的数据
+                    # data_per_case = data_per_case[-(1 + LSTMConfig.time_step + 12):-1 - 12 - round(
+                    #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+                    # data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step + 12):-1 - 12 - round(
+                    #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
 
-                        # 使用滑动窗口创建多个样本
-                        # for start_idx in range(0, len(data_per_case) - round(LSTMConfig.time_step) - 12, step):
-                        for start_idx in range(0, len(data_per_case) - LSTMConfig.time_step, step):
-                            end_idx = start_idx + LSTMConfig.time_step
+                    # 使用滑动窗口创建多个样本
+                    # for start_idx in range(0, len(data_per_case) - round(LSTMConfig.time_step) - 12, step):
+                    for start_idx in range(0, len(data_per_case) - LSTMConfig.time_step, step):
+                        end_idx = start_idx + LSTMConfig.time_step
 
-                            sample_data = data_per_case[start_idx:end_idx]
-                            sample_data2 = data_per_case2[start_idx:end_idx]
+                        sample_data = data_per_case[start_idx:end_idx]
+                        sample_data2 = data_per_case2[start_idx:end_idx]
 
-                            temp = sample_data2[:, 63:66][0]
-                            # 起点在初始球3cm外的数据
-                            if (temp[0] * temp[0] + (temp[1] - 1) * (temp[1] - 1) + (
-                                    temp[2] - 0.2) * (temp[2] - 0.2) > 0.0009):
-                                # 假设extend_data函数能够处理两个数据帧
-                                data_all.append(extend_data(sample_data, sample_data2))
-                                tag_sample = tag_per_case[0][9:12]
-                                # tag_sample = data_per_case2[start_idx + 12 - 1][63:66]
+                        temp = sample_data2[:, 63:66][0]
+                        # 起点在初始球3cm外的数据
+                        if (temp[0] * temp[0] + (temp[1] - 1) * (temp[1] - 1) + (
+                                temp[2] - 0.2) * (temp[2] - 0.2) > 0.0009):
+                            # 假设extend_data函数能够处理两个数据帧
+                            data_all.append(extend_data(sample_data, sample_data2))
+                            tag_sample = tag_per_case[0][9:12]
+                            # tag_sample = data_per_case2[start_idx + 12 - 1][63:66]
 
-                                tag_all.append(tag_sample)  # 假设标签在这个位置
-                            # else:
-                            #     print("犹豫就会被淘汰")
+                            tag_all.append(tag_sample)  # 假设标签在这个位置
+                        # else:
+                        #     print("犹豫就会被淘汰")
 
-                        # data_all.append(extend_data(data_per_case, data_per_case2))
-                        #  tag_all.append(tag_per_case[0][9:12])
-                    else:
-                        print("太短辣！")
+                    # data_all.append(extend_data(data_per_case, data_per_case2))
+                    #  tag_all.append(tag_per_case[0][9:12])
                 else:
-                    if len(data_per_case) >= LSTMConfig.time_step:
-                        # 只需要确定时间跨度的数据
-                        # data_per_case = data_per_case[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
-                        # data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
-                        # 
-                        # data_all.append(extend_data(data_per_case, data_per_case2))
-                        # tag_all.append(tag_per_case[0][9:12])
-
-                        # 使用滑动窗口创建多个样本
-                        for start_idx in range(0, len(data_per_case) - LSTMConfig.time_step, step):
-                            end_idx = start_idx + LSTMConfig.time_step
-
-                            sample_data = data_per_case[start_idx:end_idx]
-                            sample_data2 = data_per_case2[start_idx:end_idx]
-
-                            temp = sample_data2[:, 63:66][0]
-                            if (temp[0] * temp[0] + (temp[1] - 1) * (temp[1] - 1) + (
-                                    temp[2] - 0.2) * (temp[2] - 0.2) > 0.0025):
-                                # 假设extend_data函数能够处理两个数据帧
-                                data_all.append(extend_data(sample_data, sample_data2))
-                                tag_sample = tag_per_case[0][9:12]
-
-                                # if ((temp[0] - tag_sample[0]) * (temp[0] - tag_sample[0]) + (temp[1] - tag_sample[1]) * (temp[1] - tag_sample[1]) + (
-                                #     temp[2] - tag_sample[2]) * (temp[2] - tag_sample[2]) < 0.0064):
-                                #     tag_sample = np.hstack((tag_sample, [1]))
-                                # else:
-                                #     tag_sample = np.hstack((tag_sample, [0]))
-
-                                tag_all.append(tag_sample)  # 假设标签在这个位置
-                            # else:
-                            #     print("犹豫就会被淘汰")
-                    else:
-                        print("太短辣！")
+                    print("太短辣！")
+                # else:
+                #     if len(data_per_case) >= LSTMConfig.time_step:
+                #         # 只需要确定时间跨度的数据
+                #         # data_per_case = data_per_case[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+                #         # data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+                #         #
+                #         # data_all.append(extend_data(data_per_case, data_per_case2))
+                #         # tag_all.append(tag_per_case[0][9:12])
+                #
+                #         # 使用滑动窗口创建多个样本
+                #         for start_idx in range(0, len(data_per_case) - LSTMConfig.time_step, step):
+                #             end_idx = start_idx + LSTMConfig.time_step
+                #
+                #             sample_data = data_per_case[start_idx:end_idx]
+                #             sample_data2 = data_per_case2[start_idx:end_idx]
+                #
+                #             temp = sample_data2[:, 63:66][0]
+                #             if (temp[0] * temp[0] + (temp[1] - 1) * (temp[1] - 1) + (
+                #                     temp[2] - 0.2) * (temp[2] - 0.2) > 0.0025):
+                #                 # 假设extend_data函数能够处理两个数据帧
+                #                 data_all.append(extend_data(sample_data, sample_data2))
+                #                 tag_sample = tag_per_case[0][9:12]
+                #
+                #                 # if ((temp[0] - tag_sample[0]) * (temp[0] - tag_sample[0]) + (temp[1] - tag_sample[1]) * (temp[1] - tag_sample[1]) + (
+                #                 #     temp[2] - tag_sample[2]) * (temp[2] - tag_sample[2]) < 0.0064):
+                #                 #     tag_sample = np.hstack((tag_sample, [1]))
+                #                 # else:
+                #                 #     tag_sample = np.hstack((tag_sample, [0]))
+                #
+                #                 tag_all.append(tag_sample)  # 假设标签在这个位置
+                #             # else:
+                #             #     print("犹豫就会被淘汰")
+                #     else:
+                #         print("太短辣！")
             except KeyError:
                 print("case", i, "被完全去除了")
     # 添加图例
@@ -337,7 +338,8 @@ def extend_data(eye, hand):
     # p.camera_position = 'xy'
     # p.show_grid()
     # p.show(cpos="xy")
-
+    t5 = hand[:, -13:-10]
+    t3 = np.hstack((t3, t5))
     t4 = hand[:, -7:-1]
     t2 = np.hstack((t2, t3))
     t2 = np.hstack((t2, t4))

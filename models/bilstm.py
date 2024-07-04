@@ -20,10 +20,22 @@ class LSTM(nn.Module):
         self.dropout = nn.Dropout(0.5)
         self.fc = nn.Linear(hidden_size * time_step, out_size)
 
-        # super(LSTM, self).__init__()
-        # self.layer1 = nn.Linear(input_size, hidden_size)
+        # transformer
+        # self.transformer = nn.Transformer(
+        #     d_model=64,
+        #     nhead=4,
+        #     num_encoder_layers=3,
+        #     dim_feedforward=128,
+        #     dropout=0.1
+        # )
+        # self.linear = nn.Linear(input_size, 64)
+        # self.regressor = nn.Linear(64, out_size)
+
+        # MLP
+        # self.fc1 = nn.Linear(input_size, hidden_size)
         # self.relu = nn.ReLU()
-        # self.layer2 = nn.Linear(hidden_size, output_size)
+        # self.fc2 = nn.Linear(hidden_size, hidden_size)
+        # self.fc3 = nn.Linear(hidden_size, out_size)
 
     def forward(self, x):
         x = x.to(LSTMConfig.device)
@@ -39,6 +51,23 @@ class LSTM(nn.Module):
         out = out.contiguous().view([out.size()[0], -1])
         # Pass the output through the fully connected layer
         out = self.fc(out)
+
+        # transformer
+        # x = x.to(LSTMConfig.device)
+        # src = self.linear(x)
+        # src = src.permute(1, 0, 2)  # Transformer expects [sequence length, batch size, features]
+        # transformer_output = self.transformer(src, src)
+        # transformer_output = transformer_output.mean(dim=0)  # Average over the sequence length
+        # output = self.regressor(transformer_output)
+        # return output
+
+        # MLP
+        # x = x.contiguous().view([x.size()[0], -1])
+        # out = self.fc1(x)
+        # out = self.relu(out)
+        # out = self.fc2(out)
+        # out = self.relu(out)
+        # out = self.fc3(out)
         return out
 
     def test(self, scents_tensor):

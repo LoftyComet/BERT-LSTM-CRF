@@ -14,7 +14,7 @@ from sklearn.metrics import r2_score
 
 
 
-data, tag = load_data(20, 20, for_train=False)
+data, tag = load_data(1, 1, for_train=False)
 (train_lists, train_tag_lists), (dev_lists, dev_tag_lists), (test_lists, test_tag_lists) = divide_data(data, tag)
 
 
@@ -27,7 +27,7 @@ def get_pre(to_pre):
     lstm_model = load_model('./model_saved/lstm_2' + str(int(LSTMConfig.completion_percentage * 100)) + '.pkl')
     data = torch.zeros(1, LSTMConfig.time_step, LSTMConfig.input_size)
     torch.onnx.export(lstm_model, data, './model_saved/lstm_2' + str(int(LSTMConfig.completion_percentage * 100)) + '.onnx', export_params=True, verbose=False, input_names=None,
-                      output_names=None, do_constant_folding=True, dynamic_axes=None, opset_version=9)
+                      output_names=None, do_constant_folding=True, dynamic_axes=None, opset_version=14)
 
     lstm_model.lstm.flatten_parameters()  # remove warning
     to_pre = to_pre.to(LSTMConfig.device)

@@ -126,12 +126,18 @@ def bilstm_train_and_eval(train_data, dev_data, test_data):
     pred_tag_lists_x = []
     pred_tag_lists_y = []
     pred_tag_lists_z = []
+    x_error = []
+    y_error = []
+    z_error = []
     ans = []
     zero = []
     for i in range(len(pred_tag_lists)):
         temp = math.sqrt(
             (test_tag_lists[i][0] - pred_tag_lists[i][0]) ** 2 + (test_tag_lists[i][1] - pred_tag_lists[i][1]) ** 2 + (
                     test_tag_lists[i][2] - pred_tag_lists[i][2]) ** 2)
+        x_error.append(abs(test_tag_lists[i][0] - pred_tag_lists[i][0]))
+        y_error.append(abs(test_tag_lists[i][1] - pred_tag_lists[i][1]))
+        z_error.append(abs(test_tag_lists[i][2] - pred_tag_lists[i][2]))
         ans.append(temp)
         zero.append(0)
         test_tag_lists_x.append(test_tag_lists[i][0])
@@ -145,10 +151,13 @@ def bilstm_train_and_eval(train_data, dev_data, test_data):
             (test_lists[i][-1][24] - pred_tag_lists[i][0]) ** 2 + (
                         test_lists[i][-1][25] - pred_tag_lists[i][1]) ** 2 + (
                     test_lists[i][-1][26] - pred_tag_lists[i][2]) ** 2)
-        print("手距离预测点距离", temp2)
+        # print("手距离预测点距离", temp2)
         # print(pred_tag_lists[i][3])
 
     print("测试集中预测位置与真实位置的平均距离为", np.mean(ans))
+    print("测试集中预测位置与真实位置的x坐标平均偏差为", np.mean(x_error))
+    print("测试集中预测位置与真实位置的y坐标平均偏差为", np.mean(y_error))
+    print("测试集中预测位置与真实位置的z坐标平均偏差为", np.mean(z_error))
     print("X坐标R^2", r2_score(test_tag_lists_x, pred_tag_lists_x))
     print("Y坐标R^2", r2_score(test_tag_lists_y, pred_tag_lists_y))
     print("Z坐标R^2", r2_score(test_tag_lists_z, pred_tag_lists_z))
@@ -157,36 +166,36 @@ def bilstm_train_and_eval(train_data, dev_data, test_data):
     # for i in range(len(train_lists)):
     #     draw_finger(train_lists[i][:, 24], train_lists[i][:, 25], train_lists[i][:, 26], train_tag_lists[i])
 
-    draw_point(pred_tag_lists[:10], test_tag_lists[:10])
+    # draw_point(pred_tag_lists[:10], test_tag_lists[:10])
 
     # 预测点和目标球单独放一起
     # for i in range(len(pred_tag_lists)):
     #     draw_point([pred_tag_lists[i]], [test_tag_lists[i]])
     # draw_point(pred_tag_lists, test_tag_lists)
 
-    draw_error(pred_tag_lists, test_tag_lists, ans)
+    # draw_error(pred_tag_lists, test_tag_lists, ans)
 
     # 结果可视化
-    fig, ax = plt.subplots(4, 1)
-    fig.set_size_inches(10, 4)
-
-    ax[0].plot(range(len(test_tag_lists_x))[:40], test_tag_lists_x[:40], linewidth=1.5, linestyle='-', label='True')
-    ax[0].plot(range(len(pred_tag_lists_x))[:40], pred_tag_lists_x[:40], linewidth=1, linestyle='-.', label='Predicted')
-    ax[0].set_title("x")
-
-    ax[1].plot(range(len(test_tag_lists_y))[:40], test_tag_lists_y[:40], linewidth=1.5, linestyle='-', label='True')
-    ax[1].plot(range(len(pred_tag_lists_y))[:40], pred_tag_lists_y[:40], linewidth=1, linestyle='-.', label='Predicted')
-    ax[1].set_title("y")
-
-    ax[2].plot(range(len(test_tag_lists_z))[:40], test_tag_lists_z[:40], linewidth=1.5, linestyle='-', label='True')
-    ax[2].plot(range(len(pred_tag_lists_z))[:40], pred_tag_lists_z[:40], linewidth=1, linestyle='-.', label='Predicted')
-    ax[2].set_title("z")
-
-    ax[3].plot(range(len(ans))[:40], zero[:40], linewidth=1.5, linestyle='-', label='True')
-    ax[3].plot(range(len(ans))[:40], ans[:40], linewidth=1, linestyle='-', label='Predicted')
-    ax[3].set_title("distance")
-    plt.legend()
-    plt.show()
+    # fig, ax = plt.subplots(4, 1)
+    # fig.set_size_inches(10, 4)
+    #
+    # ax[0].plot(range(len(test_tag_lists_x))[:40], test_tag_lists_x[:40], linewidth=1.5, linestyle='-', label='True')
+    # ax[0].plot(range(len(pred_tag_lists_x))[:40], pred_tag_lists_x[:40], linewidth=1, linestyle='-.', label='Predicted')
+    # ax[0].set_title("x")
+    #
+    # ax[1].plot(range(len(test_tag_lists_y))[:40], test_tag_lists_y[:40], linewidth=1.5, linestyle='-', label='True')
+    # ax[1].plot(range(len(pred_tag_lists_y))[:40], pred_tag_lists_y[:40], linewidth=1, linestyle='-.', label='Predicted')
+    # ax[1].set_title("y")
+    #
+    # ax[2].plot(range(len(test_tag_lists_z))[:40], test_tag_lists_z[:40], linewidth=1.5, linestyle='-', label='True')
+    # ax[2].plot(range(len(pred_tag_lists_z))[:40], pred_tag_lists_z[:40], linewidth=1, linestyle='-.', label='Predicted')
+    # ax[2].set_title("z")
+    #
+    # ax[3].plot(range(len(ans))[:40], zero[:40], linewidth=1.5, linestyle='-', label='True')
+    # ax[3].plot(range(len(ans))[:40], ans[:40], linewidth=1, linestyle='-', label='Predicted')
+    # ax[3].set_title("distance")
+    # plt.legend()
+    # plt.show()
 
     # ax[0].plot(range(len(test_tag_lists_x)), test_tag_lists_x, linewidth=1.5, linestyle='-', label='True')
     # ax[0].plot(range(len(pred_tag_lists_x)), pred_tag_lists_x, linewidth=1, linestyle='-.', label='Predicted')
@@ -206,8 +215,8 @@ def bilstm_train_and_eval(train_data, dev_data, test_data):
     # plt.legend()
     # plt.show()
 
-    for ans1 in ans:
-        print(ans1)
+    # for ans1 in ans:
+    #     print(ans1)
 
     # metrics = Metrics(test_tag_lists, pred_tag_lists)
     # metrics.report_scores()
