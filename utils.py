@@ -133,8 +133,8 @@ def draw_points(train_tag_lists):
     x_count = x_count[0:len(x_list)]
     maxvalue = max(x_count)
     for i, x in enumerate(x_count):
-        if x > (maxvalue / 6):
-            x_count[i] = maxvalue / 6
+        if x > (maxvalue / 20):
+            x_count[i] = maxvalue / 20
 
     for i, key in enumerate(x_list):
         point = [key[0], key[1], -key[2]]

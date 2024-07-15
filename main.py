@@ -13,7 +13,7 @@ def main():
     # 读取数据
     print("读取数据...")
     # 左闭右闭
-    data, tag = load_data(1, 12)
+    data, tag = load_data(33, 36)
     (train_lists, train_tag_lists), (dev_lists, dev_tag_lists), (test_lists, test_tag_lists) = divide_data(data, tag)
     train_data, test_data = train_test_split(data, train_size=0.8, random_state=111)
     train_tag, test_tag = train_test_split(tag, train_size=0.8, random_state=111)

@@ -28,7 +28,7 @@ def del_tensor_ele_n(arr, index, n):
     return torch.cat((arr1, arr2), dim=0)
 
 
-def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1):
+def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1, percentage=1):
     """加载数据
 
     :param start: 开始人员编号
@@ -43,7 +43,7 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1):
     fig, ax = plt.subplots(3, 1)
     fig.set_size_inches(10, 4)
 
-    for dataIndex in range(start, end + 1) or [21, 24, 27, 30, 31]:
+    for dataIndex in range(start, end + 1):
     # for dataIndex in range(start, end + 1):
         print("读取", dataIndex, "号被试数据")
         prefix = data_dir + "\\" + str(dataIndex) + "\\"
@@ -75,15 +75,16 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1):
                 # 前六组数据停止时间有问题，矫正一下
                 # if dataIndex in range(1, 8) or dataIndex in range(21, 50):
                 # if dataIndex in range(1, 8):
-                if len(data_per_case) >= LSTMConfig.time_step:
+                # if len(data_per_case) >= LSTMConfig.time_step and percentage == 1:
+                if len(data_per_case) * (1 - 0.3) >= LSTMConfig.time_step and percentage == 1:  # 后半部分应大于20
                     # 只需要确定时间跨度的数据
-                    # data_per_case = data_per_case[-(1 + LSTMConfig.time_step + 12):-1 - 12 - round(
+                    # data_per_case = data_per_case[-(1 + LSTMConfig.time_step + 15):-1 - 15 - round(
                     #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
-                    # data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step + 12):-1 - 12 - round(
+                    # data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step + 15):-1 - 15 - round(
                     #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
 
                     # 使用滑动窗口创建多个样本
-                    # for start_idx in range(0, len(data_per_case) - round(LSTMConfig.time_step) - 12, step):
+                    # for start_idx in range(round(len(data_per_case) * 0.3), len(data_per_case) - LSTMConfig.time_step, step):
                     for start_idx in range(0, len(data_per_case) - LSTMConfig.time_step, step):
                         end_idx = start_idx + LSTMConfig.time_step
 
@@ -105,6 +106,21 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1):
 
                     # data_all.append(extend_data(data_per_case, data_per_case2))
                     #  tag_all.append(tag_per_case[0][9:12])
+                elif len(data_per_case) * (1 - percentage) >= LSTMConfig.time_step and percentage != 1:  # 后半部分应大于20
+                    # 只需要确定时间跨度的数据
+                    # data_per_case = data_per_case[-(1 + LSTMConfig.time_step + 15):-1 - 15 - round(
+                    #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+                    # data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step + 15):-1 - 15 - round(
+                    #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
+                    sample_data = data_per_case[round(percentage * len(data_per_case)): round(percentage * len(data_per_case)) + 20]
+                    sample_data2 = data_per_case2[round(percentage * len(data_per_case)): round(percentage * len(data_per_case)) + 20]
+
+                    # 假设extend_data函数能够处理两个数据帧
+                    data_all.append(extend_data(sample_data, sample_data2))
+                    tag_sample = tag_per_case[0][9:12]
+                    tag_all.append(tag_sample)  # 假设标签在这个位置
+
+
                 else:
                     print("太短辣！")
                 # else:
