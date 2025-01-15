@@ -24,12 +24,14 @@ def get_pre(to_pre):
 
     :return: pred_tag_lists, [[x, y, z]]
     """
-    lstm_model = load_model('./model_saved/lstm_2' + str(int(LSTMConfig.completion_percentage * 100)) + '.pkl')
-    data = torch.zeros(1, LSTMConfig.time_step, LSTMConfig.input_size)
-    torch.onnx.export(lstm_model, data, './model_saved/lstm_2' + str(int(LSTMConfig.completion_percentage * 100)) + '.onnx', export_params=True, verbose=False, input_names=None,
+    # lstm_model = load_model('./model_saved/' + "lstm" + '1' + '-' + '14' + '.pkl')
+    lstm_model = load_model('./train_model_saved0/' + "lstm" + '100' + '.pkl')
+    # data = torch.zeros(1, LSTMConfig.time_step, LSTMConfig.input_size).to(LSTMConfig.device)
+    data = torch.zeros(1, LSTMConfig.time_step, LSTMConfig.input_size).to(LSTMConfig.device)  # if mlp
+    torch.onnx.export(lstm_model, data, './model_saved/exp' + '.onnx', export_params=True, verbose=False, input_names=None,
                       output_names=None, do_constant_folding=True, dynamic_axes=None, opset_version=14)
 
-    lstm_model.lstm.flatten_parameters()  # remove warning
+    # lstm_model.lstm.flatten_parameters()  # remove warning
     to_pre = to_pre.to(LSTMConfig.device)
     pred_tag_lists = lstm_model.forward(to_pre)
 

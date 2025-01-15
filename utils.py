@@ -131,21 +131,21 @@ def draw_points(train_tag_lists):
             x_list.append(list(train_tag_lists[qq]))
 
     x_count = x_count[0:len(x_list)]
-    maxvalue = max(x_count)
-    for i, x in enumerate(x_count):
-        if x > (maxvalue / 20):
-            x_count[i] = maxvalue / 20
+    # maxvalue = max(x_count)
+    # for i, x in enumerate(x_count):
+    #     if x > (maxvalue / 20):
+    #         x_count[i] = maxvalue / 20
 
-    for i, key in enumerate(x_list):
-        point = [key[0], key[1], -key[2]]
-        points.append(point)
-    mesh = pv.PolyData(points)  # PolyData对象的实例化
-    p.add_mesh(mesh, scalars=x_count, cmap='bwr', point_size=5)
-
-
-    p.camera_position = 'xy'
-    p.show_grid()
-    p.show(cpos="xy")
+    # for i, key in enumerate(x_list):
+    #     point = [key[0], key[1], -key[2]]
+    #     points.append(point)
+    # mesh = pv.PolyData(points)  # PolyData对象的实例化
+    # p.add_mesh(mesh, scalars=x_count, cmap='bwr', point_size=5)
+    #
+    #
+    # p.camera_position = 'xy'
+    # p.show_grid()
+    # p.show(cpos="xy")
     print(x_count)
 
 def draw_finger(x, y, z, loc):
@@ -168,6 +168,9 @@ def draw_finger(x, y, z, loc):
 
 def draw_error(pred_tag_lists, test_tag_lists, distances):
     p = pv.Plotter()
+    # 设置背景为透明
+    p.set_background('white')  # 先设置为白色
+    p.set_background(None)  # 然后设置为None以实现透明
 
     # 自定义坐标轴
     p.add_axes(
@@ -181,12 +184,12 @@ def draw_error(pred_tag_lists, test_tag_lists, distances):
         ylabel='Y Axis',  # 设置Y轴标签
         zlabel='Z Axis'  # 设置Z轴标签
     )
-
     points = []
     cmap = 'bwr'
     for index, value in enumerate(distances):
         if value > 0.10:
             distances[index] = 0.10
+            print("out!")
 
     # 目标点
     for qq in range(len(test_tag_lists)):
@@ -194,6 +197,14 @@ def draw_error(pred_tag_lists, test_tag_lists, distances):
         points.append(point)
     mesh = pv.PolyData(points)  # PolyData对象的实例化
     p.add_mesh(mesh, scalars=distances, cmap=cmap, point_size=5)
-    p.show_grid()
-    p.camera_position = 'xy'
-    p.show(cpos="xy")
+    # p.show_grid()
+    # p.camera_position = 'xy'
+
+
+
+    # 使用view_vector方法旋转视图
+    p.camera.view_vector = (1, 1, 0)
+    p.render()
+
+    # p.screenshot('transparent_sphere2.png', transparent_background=True, window_size=[500, 500], scale=10)
+    p.show()

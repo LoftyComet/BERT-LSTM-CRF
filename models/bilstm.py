@@ -5,7 +5,7 @@ from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 from transformers.models.bert.modeling_bert import *
 from torch.nn.utils.rnn import pad_sequence
 from models.config import LSTMConfig
-
+import torch.nn.functional as F
 
 class LSTM(nn.Module):
     def __init__(self,  input_size, hidden_size, num_layers, time_step, completion_percentage, out_size, dropout_prob=0.3):
@@ -20,6 +20,19 @@ class LSTM(nn.Module):
         self.dropout = nn.Dropout(0.5)
         self.fc = nn.Linear(hidden_size * time_step, out_size)
 
+        # self.conv1d = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=3, padding=1)
+        # self.lstm1 = nn.LSTM(input_size=32, hidden_size=hidden_size,
+        #                      num_layers=2, bidirectional=True, batch_first=True)
+        #
+        # # 修改attention的embed_dim以匹配LSTM的输出
+        # self.attention = nn.MultiheadAttention(embed_dim=hidden_size * 2, num_heads=4)
+        #
+        # # 调整全连接层的维度
+        # self.fc1 = nn.Linear(hidden_size * 2 * 20, hidden_size)
+        # self.fc2 = nn.Linear(hidden_size, 3)  # 假设我们只预测一个值
+        # self.dropout = nn.Dropout(0.2)
+
+
         # transformer
         # self.transformer = nn.Transformer(
         #     d_model=64,
@@ -31,13 +44,58 @@ class LSTM(nn.Module):
         # self.linear = nn.Linear(input_size, 64)
         # self.regressor = nn.Linear(64, out_size)
 
-        # MLP
+        # self.embedding = nn.Linear(input_size, 64)
+        #
+        # encoder_layer = nn.TransformerEncoderLayer(
+        #     d_model=64,
+        #     nhead=4,
+        #     dim_feedforward=64 * 4,
+        #     batch_first=True
+        # )
+        # self.transformer_encoder = nn.TransformerEncoder(
+        #     encoder_layer,
+        #     num_layers=num_layers
+        # )
+        #
+        # self.fc = nn.Linear(64, 3)
+
+
+        # # MLP
         # self.fc1 = nn.Linear(input_size, hidden_size)
         # self.relu = nn.ReLU()
         # self.fc2 = nn.Linear(hidden_size, hidden_size)
         # self.fc3 = nn.Linear(hidden_size, out_size)
 
     def forward(self, x):
+        # # x shape: [batch_size, sequence_length, features]
+        # batch_size, seq_len, features = x.size()
+        #
+        # # 转换维度用于Conv1d
+        # x = x.permute(0, 2, 1)  # [batch_size, features, sequence_length]
+        # x = self.conv1d(x)  # [batch_size, 32, sequence_length]
+        # x = F.relu(x)
+        #
+        # # 准备LSTM输入
+        # x = x.permute(0, 2, 1)  # [batch_size, sequence_length, 32]
+        #
+        # # BiLSTM处理
+        # lstm_out, _ = self.lstm1(x)  # [batch_size, sequence_length, hidden_size*2]
+        #
+        # # 注意力机制
+        # # 将形状转换为注意力机制需要的格式：[sequence_length, batch_size, embed_dim]
+        # att_input = lstm_out.permute(1, 0, 2)
+        # att_output, _ = self.attention(att_input, att_input, att_input)
+        #
+        # # 转换回原来的形状
+        # x = att_output.permute(1, 0, 2)  # [batch_size, sequence_length, hidden_size*2]
+        #
+        # # 全连接层处理
+        # x = self.dropout(x)
+        # x = x.contiguous().view([x.size()[0], -1])
+        # x = F.relu(self.fc1(x))
+        # x = self.fc2(x)  # [batch_size, sequence_length, 1]
+        # return x
+
         x = x.to(LSTMConfig.device)
         # x: [batch, time_step, input_size]
         out, (h_n, c_n) = self.lstm(x)
@@ -51,6 +109,7 @@ class LSTM(nn.Module):
         out = out.contiguous().view([out.size()[0], -1])
         # Pass the output through the fully connected layer
         out = self.fc(out)
+        return out
 
         # transformer
         # x = x.to(LSTMConfig.device)
@@ -61,6 +120,14 @@ class LSTM(nn.Module):
         # output = self.regressor(transformer_output)
         # return output
 
+        # transformer_encoder
+        # x shape: (batch_size, seq_len, input_dim)
+        # x = self.embedding(x)
+        # x = self.transformer_encoder(x)
+        # # 使用序列的最后一个时间步进行预测
+        # x = x[:, -1, :]
+        # return self.fc(x)
+
         # MLP
         # x = x.contiguous().view([x.size()[0], -1])
         # out = self.fc1(x)
@@ -68,7 +135,7 @@ class LSTM(nn.Module):
         # out = self.fc2(out)
         # out = self.relu(out)
         # out = self.fc3(out)
-        return out
+        # return out
 
     def test(self, scents_tensor):
         """第三个参数不会用到，加它是为了与BiLSTM_CRF保持同样的接口"""

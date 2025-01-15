@@ -14,6 +14,7 @@ import torch.optim as optim
 from .util import tensorized, sort_by_lengths, cal_loss, cal_lstm_crf_loss
 from .config import TrainingConfig, LSTMConfig
 from .bilstm import LSTM
+from utils import save_model
 
 
 class LstmModel(object):
@@ -40,14 +41,14 @@ class LstmModel(object):
 
         # 初始化优化器
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-5)
-
+        # self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         # 初始化其他指标
         self.step = 0
         self._best_val_loss = 1e18
         self.best_model = None
 
     def train(self, word_lists, tag_lists,
-              dev_word_lists, dev_tag_lists):
+              dev_word_lists, dev_tag_lists, model_name):
         B = self.batch_size
         for e in range(1, self.epochs + 1):
             self.step = 0
@@ -72,7 +73,7 @@ class LstmModel(object):
             val_loss = self.validate(
                 dev_word_lists, dev_tag_lists)
             print("Epoch {}, Val Loss:{:.8f}".format(e, val_loss))
-
+            save_model(self.model, "./train_model_saved" + str(model_name) + "/lstm" + str(e) + ".pkl")
     def train_step(self, batch_sents, batch_tags):
         self.model.train()
         self.step += 1
@@ -91,8 +92,10 @@ class LstmModel(object):
         # 计算损失 更新参数
         # step1 清空梯度
         self.optimizer.zero_grad()
+
         # step2 计算loss
-        loss = self.cal_loss_func(scores, targets).to(self.device)
+        # loss = self.cal_loss_func(scores, targets).to(self.device)
+        loss = self.cal_loss_func(scores.squeeze(-1), targets).to(self.device)
         # step3 #反向传播 计算梯度
         loss.backward()
         # 根据优化器的策略去更新参数

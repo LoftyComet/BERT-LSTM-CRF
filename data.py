@@ -15,17 +15,6 @@ from matplotlib import pyplot as plt
 from models.config import LSTMConfig
 from sklearn.model_selection import train_test_split
 from scipy.ndimage import gaussian_filter1d
-import pyvista as pv
-
-def del_tensor_ele_n(arr, index, n):
-    """
-    arr: 输入tensor
-    index: 需要删除位置的索引
-    n: 从index开始，需要删除的行数
-    """
-    arr1 = arr[0:index]
-    arr2 = arr[index + n:]
-    return torch.cat((arr1, arr2), dim=0)
 
 
 def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1, percentage=1):
@@ -40,11 +29,12 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1, perc
     data_all = []
     tag_all = []
 
-    fig, ax = plt.subplots(3, 1)
-    fig.set_size_inches(10, 4)
-
+    # fig, ax = plt.subplots(3, 1)
+    # fig.set_size_inches(10, 4)
     for dataIndex in range(start, end + 1):
     # for dataIndex in range(start, end + 1):
+        if dataIndex in range(21, 31) and for_train:
+            continue
         print("读取", dataIndex, "号被试数据")
         prefix = data_dir + "\\" + str(dataIndex) + "\\"
         df = pd.read_csv(prefix + "Eye.csv", encoding="utf-8").interpolate()  # 线性插值处理缺失值
@@ -60,107 +50,56 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1, perc
                 data_per_case2 = np.array(data_per_person2.get_group(i).reset_index())
                 tag_per_case = np.array(tag_per_person.get_group(i).reset_index())
                 # eye_move_characteristic = get_characteristic(data_per_case, 6, 9)
-                head_characteristic = get_characteristic(data_per_case, 12, 15, ax)
-                head_move_characteristic = get_characteristic(data_per_case, 15, 18, ax)
-                finger_characteristic = get_characteristic(data_per_case2, 63, 66, ax)
+                head_characteristic = get_characteristic(data_per_case, 12, 15)
+                head_move_characteristic = get_characteristic(data_per_case, 15, 18)
+                finger_characteristic = get_characteristic(data_per_case2, 63, 66)
 
                 # 手指尖指向和头手射线连线
                 # dir_char = get_dir_char(data_per_case2)
                 # 全加在hand后面
                 # data_per_case2 = np.hstack((data_per_case2, eye_move_characteristic))
-                data_per_case2 = np.hstack((data_per_case2, head_characteristic))
-                data_per_case2 = np.hstack((data_per_case2, head_move_characteristic))
+                # data_per_case2 = np.hstack((data_per_case2, head_characteristic))
+                # data_per_case2 = np.hstack((data_per_case2, head_move_characteristic))
                 data_per_case2 = np.hstack((data_per_case2, finger_characteristic))
-                # data_per_case2 = np.hstack((data_per_case2, dir_char))
-                # 前六组数据停止时间有问题，矫正一下
-                # if dataIndex in range(1, 8) or dataIndex in range(21, 50):
-                # if dataIndex in range(1, 8):
-                # if len(data_per_case) >= LSTMConfig.time_step and percentage == 1:
-                if len(data_per_case) * (1 - 0.3) >= LSTMConfig.time_step and percentage == 1:  # 后半部分应大于20
+
+
+                start_idx = 0
+                # 选定开始的起点是速度到底最大速度的5%
+                hand_vs = data_per_case2[:, -1]
+                hand_v_max = max(hand_vs)
+                for idxV, hand_V in enumerate(hand_vs):
+                    if hand_V > hand_v_max * 0.05:
+                        start_idx = idxV
+                        break
+                if len(data_per_case) - start_idx >= LSTMConfig.time_step + LSTMConfig.pre_frame + 15 and percentage == 1 and len(data_per_case) < 180:  # 后半部分应大于20
                     # 只需要确定时间跨度的数据
-                    # data_per_case = data_per_case[-(1 + LSTMConfig.time_step + 15):-1 - 15 - round(
-                    #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
-                    # data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step + 15):-1 - 15 - round(
-                    #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
 
                     # 使用滑动窗口创建多个样本
                     # for start_idx in range(round(len(data_per_case) * 0.3), len(data_per_case) - LSTMConfig.time_step, step):
-                    for start_idx in range(0, len(data_per_case) - LSTMConfig.time_step, step):
+                    temp1 = data_per_case2[:, 63:66][-1]
+                    # if (temp1[0] * temp1[0] + (temp1[1] - 1) * (temp1[1] - 1) + (
+                    #         temp1[2] - 0.2) * (temp1[2] - 0.2) < 0.4 * 0.4):
+                    #     print("短小")
+
+                    for start_idx in range(start_idx, len(data_per_case) - LSTMConfig.time_step - LSTMConfig.pre_frame - 15, step):
                         end_idx = start_idx + LSTMConfig.time_step
 
                         sample_data = data_per_case[start_idx:end_idx]
                         sample_data2 = data_per_case2[start_idx:end_idx]
-
-                        temp = sample_data2[:, 63:66][0]
+                        tag_sample = data_per_case2[:, 63:66][end_idx - 1 + LSTMConfig.pre_frame]
+                        # temp = sample_data2[:, 63:66][0]
                         # 起点在初始球3cm外的数据
-                        if (temp[0] * temp[0] + (temp[1] - 1) * (temp[1] - 1) + (
-                                temp[2] - 0.2) * (temp[2] - 0.2) > 0.0009):
-                            # 假设extend_data函数能够处理两个数据帧
-                            data_all.append(extend_data(sample_data, sample_data2))
-                            tag_sample = tag_per_case[0][9:12]
-                            # tag_sample = data_per_case2[start_idx + 12 - 1][63:66]
-
-                            tag_all.append(tag_sample)  # 假设标签在这个位置
-                        # else:
-                        #     print("犹豫就会被淘汰")
-
+                        # if (temp[0] * temp[0] + (temp[1] - 1) * (temp[1] - 1) + (
+                        #         temp[2] - 0.2) * (temp[2] - 0.2) > 0.0009):
+                        data_all.append(extend_data(sample_data, sample_data2))
+                        # tag_sample = tag_per_case[0][9:12]
+                        tag_all.append(tag_sample)  # 假设标签在这个位置
                     # data_all.append(extend_data(data_per_case, data_per_case2))
                     #  tag_all.append(tag_per_case[0][9:12])
-                elif len(data_per_case) * (1 - percentage) >= LSTMConfig.time_step and percentage != 1:  # 后半部分应大于20
-                    # 只需要确定时间跨度的数据
-                    # data_per_case = data_per_case[-(1 + LSTMConfig.time_step + 15):-1 - 15 - round(
-                    #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
-                    # data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step + 15):-1 - 15 - round(
-                    #     (1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
-                    sample_data = data_per_case[round(percentage * len(data_per_case)): round(percentage * len(data_per_case)) + 20]
-                    sample_data2 = data_per_case2[round(percentage * len(data_per_case)): round(percentage * len(data_per_case)) + 20]
-
-                    # 假设extend_data函数能够处理两个数据帧
-                    data_all.append(extend_data(sample_data, sample_data2))
-                    tag_sample = tag_per_case[0][9:12]
-                    tag_all.append(tag_sample)  # 假设标签在这个位置
-
-
-                else:
-                    print("太短辣！")
-                # else:
-                #     if len(data_per_case) >= LSTMConfig.time_step:
-                #         # 只需要确定时间跨度的数据
-                #         # data_per_case = data_per_case[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
-                #         # data_per_case2 = data_per_case2[-(1 + LSTMConfig.time_step):-1-round((1 - LSTMConfig.completion_percentage) * LSTMConfig.time_step)]
-                #         #
-                #         # data_all.append(extend_data(data_per_case, data_per_case2))
-                #         # tag_all.append(tag_per_case[0][9:12])
-                #
-                #         # 使用滑动窗口创建多个样本
-                #         for start_idx in range(0, len(data_per_case) - LSTMConfig.time_step, step):
-                #             end_idx = start_idx + LSTMConfig.time_step
-                #
-                #             sample_data = data_per_case[start_idx:end_idx]
-                #             sample_data2 = data_per_case2[start_idx:end_idx]
-                #
-                #             temp = sample_data2[:, 63:66][0]
-                #             if (temp[0] * temp[0] + (temp[1] - 1) * (temp[1] - 1) + (
-                #                     temp[2] - 0.2) * (temp[2] - 0.2) > 0.0025):
-                #                 # 假设extend_data函数能够处理两个数据帧
-                #                 data_all.append(extend_data(sample_data, sample_data2))
-                #                 tag_sample = tag_per_case[0][9:12]
-                #
-                #                 # if ((temp[0] - tag_sample[0]) * (temp[0] - tag_sample[0]) + (temp[1] - tag_sample[1]) * (temp[1] - tag_sample[1]) + (
-                #                 #     temp[2] - tag_sample[2]) * (temp[2] - tag_sample[2]) < 0.0064):
-                #                 #     tag_sample = np.hstack((tag_sample, [1]))
-                #                 # else:
-                #                 #     tag_sample = np.hstack((tag_sample, [0]))
-                #
-                #                 tag_all.append(tag_sample)  # 假设标签在这个位置
-                #             # else:
-                #             #     print("犹豫就会被淘汰")
-                #     else:
-                #         print("太短辣！")
             except KeyError:
                 print("case", i, "被完全去除了")
     # 添加图例
-    plt.legend()
+    # plt.legend()
 
     # 显示图形
     # plt.grid(True)
@@ -198,120 +137,231 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1, perc
         for k in range(len(tag_all[0])):
             tag_all_ans[i][k] = tag_all[i][k]
 
-    # !!!分开按照各个特征归一化
-    # for i in range(data_all_ans.shape[-1]):
-    #     temp = data_all_ans[..., i].shape
-    #     temp1 = data_all_ans[..., i].flatten()
-    #     data_all_ans[..., i] = normalize_data(data_all_ans[..., i].reshape(len(temp1), 1)).reshape(temp)
-    #
-    # for i in range(3):
-    #     temp = tag_all_ans[:, i].shape
-    #     temp1 = tag_all_ans[:, i].flatten()
-    #     tag_all_ans[:, i] = normalize_data(tag_all_ans[:, i].reshape(len(temp1), 1)).reshape(temp)
-    # for i in range(len(data_all_ans)):
-    #     for j in range(len(data_all_ans[0])):
-    #         print(data_all_ans[:, j].shape)
-    #         data_all_ans[:, j] = normalize_data(data_all_ans[:, j])
-    # for i in range(len(tag_all_ans)):
-    #     for j in range(len(tag_all_ans[0])):
-    #         tag_all_ans[:, j] = normalize_data(tag_all_ans[:, j])
-    # return normalize_data(data_all_ans), normalize_data(tag_all_ans)
-    # for i in jump_time:
-    #     del_tensor_ele_n(data_all_ans, i, 1)
-    #     del_tensor_ele_n(tag_all_ans, i, 1)
-    # print(data_all_ans)
 
-    # 计算每个特征的均值和标准差
-    # if for_train:
-    #     mean = data_all_ans.mean(dim=(0, 1), keepdim=True)
-    #     std = data_all_ans.std(dim=(0, 1), keepdim=True)
-    #     print(mean)
-    #     print(std)
-    # else:
-    #     mean = torch.Tensor([[[ 1.0402e-01],
-    #      [ 8.7239e-03],
-    #      [-1.1163e-03],
-    #      [-2.3749e-02],
-    #      [ 1.1742e+00],
-    #      [ 3.7552e-02],
-    #      [-4.0705e-02],
-    #      [-2.4295e-02],
-    #      [ 8.7753e-01],
-    #      [ 4.3618e-02],
-    #      [ 9.1677e-01],
-    #      [ 2.8998e-01],
-    #      [ 4.3618e-02],
-    #      [ 9.1677e-01],
-    #      [ 2.8998e-01],
-    #      [ 9.4858e-03],
-    #      [ 9.7814e-01],
-    #      [ 3.3738e-01],
-    #      [-3.6412e-03],
-    #      [ 9.9097e-01],
-    #      [ 3.6269e-01],
-    #      [-1.4259e-02],
-    #      [ 9.9711e-01],
-    #      [ 3.7847e-01],
-    #      [-2.2310e-02],
-    #      [ 1.0026e+00],
-    #      [ 3.9385e-01],
-    #      [ 4.5608e-01],
-    #      [ 2.7237e-01],
-    #      [ 2.3369e+01],
-    #      [ 1.1020e-01],
-    #      [ 3.5618e+00],
-    #      [ 3.1868e-01],
-    #      [ 1.0817e+01],
-    #      [ 5.3727e-01],
-    #      [ 2.0563e+01],
-    #      [-3.1348e-02],
-    #      [ 6.2575e-02]]])
-    #     std = torch.Tensor([[[1.1563e-01],
-    #      [7.6606e-02],
-    #      [1.0528e-02],
-    #      [7.2178e-02],
-    #      [4.1436e-02],
-    #      [4.3244e-02],
-    #      [3.7594e-01],
-    #      [2.8140e-01],
-    #      [8.4710e-02],
-    #      [1.9737e-01],
-    #      [1.9295e-01],
-    #      [9.3123e-02],
-    #      [1.9737e-01],
-    #      [1.9295e-01],
-    #      [9.3123e-02],
-    #      [2.2512e-01],
-    #      [2.1791e-01],
-    #      [9.3710e-02],
-    #      [2.3768e-01],
-    #      [2.3081e-01],
-    #      [9.5652e-02],
-    #      [2.4545e-01],
-    #      [2.3928e-01],
-    #      [9.7491e-02],
-    #      [2.5299e-01],
-    #      [2.4740e-01],
-    #      [9.9106e-02],
-    #      [9.4068e-02],
-    #      [3.7188e-01],
-    #      [3.0609e+01],
-    #      [7.8751e-02],
-    #      [3.1457e+00],
-    #      [4.8095e-01],
-    #      [1.9712e+01],
-    #      [3.7278e-01],
-    #      [1.4614e+01],
-    #      [4.9886e-02],
-    #      [5.1240e-02]]])
-    # std += 1e-6
-    # data_all_ans_normalized = (data_all_ans - mean) / std
-    # # 为防止除以零，可以添加一个小的常数
-    #
-    # return data_all_ans_normalized, tag_all_ans  # [num, time_step, input_size]
-    # # print("数据处理完成")
     return data_all_ans, tag_all_ans  # [num, time_step, input_size]
 
+
+def load_data2(loadList,data_dir="AI_magic_data", for_train=True, step=1, percentage=1):
+    """加载数据
+
+    :param start: 开始人员编号
+    :param end: 结束人员编号
+    :param data_dir: 数据集文件路径
+    :param step: 滑动窗口移动距离
+    :return: 数值列表 标签列表
+    """
+    data_all = []
+    tag_all = []
+
+    to_draw = []
+    in_point_index = []
+    # fig, ax = plt.subplots(3, 1)
+    # fig.set_size_inches(10, 4)
+    for dataIndex in loadList:
+    # for dataIndex in range(start, end + 1):
+
+        print("读取", dataIndex, "号被试数据")
+        prefix = data_dir + "\\" + str(dataIndex) + "\\"
+        df = pd.read_csv(prefix + "Eye.csv", encoding="utf-8").interpolate()  # 线性插值处理缺失值
+        df2 = pd.read_csv(prefix + "Hand.csv", encoding="utf-8").interpolate()
+        df_tag = pd.read_csv(prefix + "Round.csv", encoding="utf-8").interpolate()
+        data_per_person = df.groupby('Case')
+        data_per_person2 = df2.groupby('Case')
+        tag_per_person = df_tag.groupby('Case')
+        for i in range(1, 150 + 1):
+            try:
+                # 每一个人每case数据
+                data_per_case = np.array(data_per_person.get_group(i).reset_index())
+                data_per_case2 = np.array(data_per_person2.get_group(i).reset_index())
+                tag_per_case = np.array(tag_per_person.get_group(i).reset_index())
+                # eye_move_characteristic = get_characteristic(data_per_case, 6, 9)
+                head_characteristic = get_characteristic(data_per_case, 12, 15)
+                head_move_characteristic = get_characteristic(data_per_case, 15, 18)
+                finger_characteristic = get_characteristic(data_per_case2, 63, 66)
+
+                # 手指尖指向和头手射线连线
+                # dir_char = get_dir_char(data_per_case2)
+                # 全加在hand后面
+                # data_per_case2 = np.hstack((data_per_case2, eye_move_characteristic))
+                # data_per_case2 = np.hstack((data_per_case2, head_characteristic))
+                # data_per_case2 = np.hstack((data_per_case2, head_move_characteristic))
+                data_per_case2 = np.hstack((data_per_case2, finger_characteristic))
+                # data_per_case2 = np.hstack((data_per_case2, dir_char))
+
+                # selected_columns = [-1]  # 选择列
+                # # selected_data = data_per_case2[:, selected_columns]
+                #
+                # selected_data = data_per_case2[:, selected_columns].T  # 选择所有行和指定列
+                # # 使用高斯滤波进行平滑处理
+                # sigma = 2  # 标准差，决定平滑的程度
+                # selected_data = gaussian_filter1d(selected_data, sigma).T
+                # to_draw.append(selected_data)
+                # temp = data_per_case2[:, 63:66]
+                # tag_sample = tag_per_case[0][9:12]
+                # for fingerI in range(len(temp)):
+                #     if ((temp[fingerI][0] - tag_sample[0]) * (temp[fingerI][0] - tag_sample[0]) + (temp[fingerI][1] - tag_sample[1]) * (temp[fingerI][1] - tag_sample[1]) + (temp[fingerI][2] - tag_sample[2]) * (temp[fingerI][2] - tag_sample[2]) < 0.0004):
+                #         in_point_index.append(fingerI)
+                #         break
+
+
+                start_idx = 0
+                # 选定开始的起点是速度到底最大速度的5%
+                hand_vs = data_per_case2[:, -2]
+                hand_v_max = max(hand_vs)
+                for idxV, hand_V in enumerate(hand_vs):
+                    if hand_V > hand_v_max * 0.05:
+                        start_idx = idxV
+                        break
+                if len(data_per_case) - start_idx >= LSTMConfig.time_step + LSTMConfig.pre_frame + 15 and percentage == 1 and len(data_per_case) < 180:  # 后半部分应大于20
+                    # fig = plt.figure(figsize=(10, 8))
+                    # ax = fig.add_subplot(111, projection='3d')
+                    # ax.scatter(-data_per_case2[:, 63][0], data_per_case2[:, 64][0], data_per_case2[:, 65][0], c='black', s=100)
+                    # # 绘制散点图
+                    # scatter = ax.scatter(-data_per_case2[:, 63], data_per_case2[:, 64], data_per_case2[:, 65], c=data_per_case2[:, -1],
+                    #                      cmap='viridis', alpha=0.6)
+                    #
+                    # # 设置标题和轴标签
+                    # ax.set_title('hand movement')
+                    # ax.set_xlabel('X')
+                    # ax.set_ylabel('Y')
+                    # ax.set_zlabel('Z')
+                    #
+                    # # 添加颜色条
+                    # plt.colorbar(scatter)
+                    #
+                    # # 显示图形
+                    # plt.show()
+
+
+                    for start_idx in range(start_idx, len(data_per_case) - LSTMConfig.time_step - LSTMConfig.pre_frame - 15, step):
+                        end_idx = start_idx + LSTMConfig.time_step
+
+                        # region 获取数据
+                        sample_data = data_per_case[start_idx:end_idx]
+                        sample_data2 = data_per_case2[start_idx:end_idx]
+                        tag_sample = data_per_case2[:, 63:66][end_idx - 1 + LSTMConfig.pre_frame]
+                        temp = sample_data2[:, 63:66][0]
+                        merged_data = extend_data(sample_data, sample_data2)
+                        # endregion
+                        # if start_idx + 5 == len(data_per_case) - LSTMConfig.time_step - LSTMConfig.pre_frame - 15:
+                        #     # region 可视化滑动窗口平滑
+                        #     selected_columns = [-2]  # 选择列
+                        #     selected_data = sample_data2[:, selected_columns]
+                        #     # selected_data = sample_data2[:, selected_columns].T  # 选择所有行和指定列
+                        #     # # 使用高斯滤波进行平滑处理
+                        #     # sigma = 2  # 标准差，决定平滑的程度
+                        #     # selected_data = gaussian_filter1d(selected_data, sigma).T
+                        #     to_draw.append(selected_data)
+                        #     temp = sample_data2[:, 63:66]
+                        #     tag_sample = tag_per_case[0][9:12]
+                        #     for fingerI in range(len(temp)):
+                        #         if ((temp[fingerI][0] - tag_sample[0]) * (temp[fingerI][0] - tag_sample[0]) + (
+                        #                 temp[fingerI][1] - tag_sample[1]) * (temp[fingerI][1] - tag_sample[1]) + (
+                        #                 temp[fingerI][2] - tag_sample[2]) * (temp[fingerI][2] - tag_sample[2]) < 0.0004):
+                        #             in_point_index.append(fingerI)
+                        #             break
+                            # endregion
+
+                        # fig = plt.figure(figsize=(10, 8))
+                        # ax = fig.add_subplot(111, projection='3d')
+                        # ax.scatter(-sample_data2[:, 63][0], sample_data2[:, 64][0], sample_data2[:, 65][0], c='black', s=100)
+                        # ax.scatter(-tag_sample[0], tag_sample[1], tag_sample[2], c='red',
+                        #            s=100)
+                        # # 绘制散点图
+                        # scatter = ax.scatter(-sample_data2[:, 63], sample_data2[:, 64], sample_data2[:, 65], c=sample_data2[:, -1],
+                        #                      cmap='viridis', alpha=0.6)
+                        #
+                        # # 设置标题和轴标签
+                        # ax.set_title('hand movement')
+                        # ax.set_xlabel('X')
+                        # ax.set_ylabel('Y')
+                        # ax.set_zlabel('Z')
+                        #
+                        # # 添加颜色条
+                        # plt.colorbar(scatter)
+                        #
+                        # # 显示图形
+                        # plt.show()
+
+                        data_all.append(merged_data)
+                        # tag_sample = tag_per_case[0][9:12]
+                        tag_all.append(tag_sample)  # 假设标签在这个位置
+                    # data_all.append(extend_data(data_per_case, data_per_case2))
+                    #  tag_all.append(tag_per_case[0][9:12])
+
+                else:
+                    # pass
+                    print("太短辣！")
+            except KeyError:
+                print("case", i, "被完全去除了")
+    # 添加图例
+    # plt.legend()
+
+    # 显示图形
+    # plt.grid(True)
+    # plt.show()
+    print("数据读取完成")
+    # 转换为tensor
+    # data_all_ans = torch.zeros((len(data_all), len(data_all[0]), len(data_all[0][0])))
+    # for i in range(len(data_all)):
+    #     for j in range(len(data_all[0])):
+    #         for k in range(len(data_all[0][0])):
+    #             try:
+    #                 data_all_ans[i][j][k] = data_all[i][j][k]
+    #             except IndexError:
+    #                 data_all_ans[i][j][k] = 0
+    jump_time = []
+    print("开始转换input为tensor")
+    data_all_ans = torch.tensor(data_all, dtype=torch.float32)
+    # data_all_ans = torch.zeros((len(data_all), len(data_all[0]), len(data_all[0][0])))
+    # for i in range(len(data_all)):
+    #     for j in range(len(data_all[0])):
+    #         for k in range(len(data_all[0][0])):
+    #             data_all_ans[i][j][k] = data_all[i][j][k]
+
+    tag_all_ans = np.array(tag_all)[:, 8:11]
+    # tag 带时序
+    # tag_all_ans = torch.ones((len(tag_all_ans), LSTMConfig.time_step, len(tag_all[0])))
+    # for i in range(len(tag_all)):
+    #     for j in range(LSTMConfig.time_step):
+    #         for k in range(len(tag_all[0])):
+    #             tag_all_ans[i][j][k] = tag_all[i][k]
+    print("开始转换tag为tensor")
+    # tag不带时序
+    tag_all_ans = torch.zeros((len(tag_all_ans), len(tag_all[0])))
+    for i in range(len(tag_all)):
+        for k in range(len(tag_all[0])):
+            tag_all_ans[i][k] = tag_all[i][k]
+
+    # # region 可视化所有人速度加速度
+    # # 设置图表样式
+    # plt.figure(figsize=(10, 6))
+    # colors = plt.cm.tab10(np.linspace(0, 1, len(to_draw)))  # 自动生成不同颜色
+    #
+    # # 绘制每条折线
+    # for i, line_data in enumerate(to_draw):
+    #     if i > 5:
+    #         break
+    #     plt.plot(line_data,
+    #              # marker='o',  # 数据点标记
+    #              linestyle='-',  # 线型
+    #              label=f'线{i + 1}',  # 图例标签
+    #              # color=colors[i]  # 线条颜色
+    #              )
+    #     # plt.plot(in_point_index[i], line_data[in_point_index[i]],
+    #     #          marker='o',  # 数据点标记
+    #     #          color='black'  # 线条颜色
+    #     #          )
+    #
+    # # 添加图表元素
+    # plt.title('V of finger during each selection process', fontsize=14)
+    # plt.xlabel('X', fontsize=12)
+    # plt.ylabel('Y', fontsize=12)
+    # plt.grid(True, linestyle='--', alpha=0.7)
+    # # plt.legend()
+    # plt.show()
+    # endregion
+    return data_all_ans, tag_all_ans  # [num, time_step, input_size]
 
 def divide_data(data, tag):
     """划分训练测试和验证集
@@ -321,10 +371,14 @@ def divide_data(data, tag):
     :return:
     """
     train_data, test_data = train_test_split(data, train_size=0.8, random_state=111)
-    train_data, dev_data = train_test_split(train_data, train_size=0.75, random_state=111)
+    train_data, dev_data = train_test_split(train_data, train_size=0.9, random_state=111)
+
     train_tag, test_tag = train_test_split(tag, train_size=0.8, random_state=111)
-    train_tag, dev_tag = train_test_split(train_tag, train_size=0.75, random_state=111)
-    return (train_data, train_tag), (test_data, test_tag), (dev_data, dev_tag)
+    train_tag, dev_tag = train_test_split(train_tag, train_size=0.9, random_state=111)
+    # train_data, dev_data = train_test_split(data, train_size=0.9, random_state=111)
+    # train_tag, dev_tag = train_test_split(tag, train_size=0.9, random_state=111)
+    # return (train_data, train_tag), (dev_data, dev_tag)
+    return (train_data, train_tag), (dev_data, dev_tag), (test_data, test_tag)
 
 
 def extend_data(eye, hand):
@@ -335,17 +389,18 @@ def extend_data(eye, hand):
     :return:
     """
     # 按列取 左闭右开 要+1，因为取数时前面会多一行序号，还要+2，因为有两行轮次序号
-    t1 = eye[:, 6:9]
-    p = pv.Plotter()
-
-    t12 = eye[:, 12:18]
-    t1 = np.hstack((t1, t12))
-    # 在手部数据再筛选一些，只需要手掌手腕和最重要的食指数据
-    t2 = hand[:, 3:9]
-    t22 = hand[:, 21:30]
-    t2 = np.hstack((t2, t22))
-    t3 = hand[:, 63:66]
+    # t1 = eye[:, 6:9]
     #
+    #
+    # t12 = eye[:, 12:18]
+    # t1 = np.hstack((t1, t12))
+    # 在手部数据再筛选一些，只需要手掌手腕和最重要的食指数据
+    # t2 = hand[:, 3:9]
+    # t22 = hand[:, 21:30]
+    # t2 = np.hstack((t2, t22))
+    t100 = hand[:, 63:66]
+    # print(t3)
+    # p = pv.Plotter()
     # for qq in range(len(t3)):
     #     point = [t3[qq][0], t3[qq][1], t3[qq][2]]
     #     mesh = pv.PolyData(point)  # PolyData对象的实例化
@@ -354,25 +409,31 @@ def extend_data(eye, hand):
     # p.camera_position = 'xy'
     # p.show_grid()
     # p.show(cpos="xy")
-    t5 = hand[:, -13:-10]
-    t3 = np.hstack((t3, t5))
-    t4 = hand[:, -7:-1]
-    t2 = np.hstack((t2, t3))
-    t2 = np.hstack((t2, t4))
-    return np.hstack((t1, t2))
+    # t5 = hand[:, -13:-10]
+    # t3 = np.hstack((t3, t5))
+    t4 = hand[:, -5:]
+    # t4 = hand[:, -1:]
+    # print(t4)
+    # t2 = np.hstack((t2, t3))
+    # t2 = np.hstack((t2, t4))
+    # return np.hstack((t1, t2))
+
+    #
+    # t6 = eye[:, 3:6]
+    # t1 = eye[:, 9:12]
+    # t2 = eye[:, 15:18]
+    # t1 = t1 + t2
+    # t1 = np.hstack((t1, t6))
+    t4 = np.hstack((t100, t4))
+    # t4 = np.hstack((t1, t4))
+    # t5 = eye[:, 12:18]
+    # t4 = np.hstack((t5, t4))
+    # t4 = np.hstack((t2, t4))
+    return t4
+    # return t100
 
 
-def normalize_data(ori_data):
-    """数据归一化
-
-    :param ori_data:
-    :return:
-    """
-    normalized_data = torch.nn.functional.normalize(ori_data.float(), p=1, dim=1)
-    return normalized_data
-
-
-def get_characteristic(ori_data, start, end, ax):
+def get_characteristic(ori_data, start, end):
     """添加手部特征
 
     :param ori_data:要添加的数据
@@ -382,16 +443,22 @@ def get_characteristic(ori_data, start, end, ax):
     :return:添加后的特征附在最后
     """
     t1 = ori_data[:, start:end]
-    t2 = np.zeros((len(t1), 8), dtype=float)
+    t2 = np.zeros((len(t1), 5), dtype=float)
     # 前两组数据不足，速度加速度都是0
-    for i in range(2, len(t1)):
-        t2[i][0] = math.sqrt(pow((t1[i-1][0] - t1[i][0]), 2) + pow((t1[i-1][1] - t1[i][1]), 2) + pow((t1[i-1][2] - t1[i][2]), 2)) / 0.02
-        t2[i][1] = math.sqrt(pow(((t1[i][0] - t1[i-1][0]) / 0.02 - (t1[i-1][0] - t1[i-2][0]) / 0.02), 2) + pow(((t1[i][1] - t1[i-1][1]) / 0.02 - (t1[i-1][1] - t1[i-2][1]) / 0.02), 2) + pow(((t1[i][2] - t1[i-1][2]) / 0.02 - (t1[i-1][2] - t1[i-2][2]) / 0.02), 2)) / 0.02
+    for i in range(1, len(t1)):
+        # t2[i][0] = math.sqrt(pow((t1[i-1][0] - t1[i][0]), 2) + pow((t1[i-1][1] - t1[i][1]), 2) + pow((t1[i-1][2] - t1[i][2]), 2)) / 0.02
+        # print(t2[i][0])
+        # t2[i][1] = math.sqrt(pow(((t1[i][0] - t1[i-1][0]) / 0.02 - (t1[i-1][0] - t1[i-2][0]) / 0.02), 2) + pow(((t1[i][1] - t1[i-1][1]) / 0.02 - (t1[i-1][1] - t1[i-2][1]) / 0.02), 2) + pow(((t1[i][2] - t1[i-1][2]) / 0.02 - (t1[i-1][2] - t1[i-2][2]) / 0.02), 2)) / 0.02
+        # print(t2[i][1])
         # 这3列是方向
-        # t2[i][2] = t1[i][0] - t1[i - 1][0]
-        # t2[i][3] = t1[i][1] - t1[i - 1][1]
-        # t2[i][4] = t1[i][2] - t1[i - 1][2]
-
+        t2[i][0] = t1[i][0] - t1[i - 1][0]
+        t2[i][1] = t1[i][1] - t1[i - 1][1]
+        t2[i][2] = t1[i][2] - t1[i - 1][2]
+        t2[i][3] = math.sqrt(pow((t1[i-1][0] - t1[i][0]), 2) + pow((t1[i-1][1] - t1[i][1]), 2) + pow((t1[i-1][2] - t1[i][2]), 2)) / 0.02
+        # t2[i][4] = math.sqrt(pow(((t1[i][0] - t1[i-1][0]) / 0.02 - (t1[i-1][0] - t1[i-2][0]) / 0.02), 2) + pow(((t1[i][1] - t1[i-1][1]) / 0.02 - (t1[i-1][1] - t1[i-2][1]) / 0.02), 2) + pow(((t1[i][2] - t1[i-1][2]) / 0.02 - (t1[i-1][2] - t1[i-2][2]) / 0.02), 2)) / 0.02
+    for i in range(2, len(t1)):
+        t2[i][4] = (t2[i][3] - t2[i - 1][3]) / 0.02
+    # print(t2[i][0])
 
     # # 绘制函数曲线
     # ax[0].plot(range(len(t2)), t2[:, 0], label='V')
@@ -441,6 +508,4 @@ def get_dir_char(ori_data):
     t2[:, 1] = gaussian_filter1d(t2[:, 1], sigma)
     t2[:, 2] = gaussian_filter1d(t2[:, 2], sigma)
     return t2
-
-# data, tag = load_data(1, 4)
 
