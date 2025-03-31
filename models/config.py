@@ -24,10 +24,10 @@ class LSTMConfig(object):
     hidden_size = 64  # lstm隐向量的维数
     num_layers = 2  # lstm层数
     time_step = 20  # 时间步长 !!! 滑动窗口大小
-    # input_size = 6 * 20  # if MLP
+    # input_size = 8 * 20  # if MLP
     input_size = 8
     out_size = 3
-    pre_frame = 20
+    pre_frame = 10
     completion_percentage = 1  # 选择过程完成的百分比
     device = torch.device(f"cuda:{gpu}" if torch.cuda.is_available() else 'cpu')
     print("计算设备为", device)

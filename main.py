@@ -39,7 +39,7 @@ def main():
 
     k = 5  # 设置折叠数，通常为 5 或 10
     kf = KFold(n_splits=k, shuffle=True, random_state=66)  # 可以根据需要调整 shuffle 和 random_state
-    X = range(1, 21)
+    X = range(1, 17)
     # dev_lists, dev_tag_lists = load_data(21, 24, for_train=False)
     # 读取数据
     print("读取数据...")
@@ -51,8 +51,8 @@ def main():
             train_index[qq] += 1
         for qq in range(len(test_index)):
             test_index[qq] += 1
-        train_lists, train_tag_lists = load_data2(train_index, for_train=True)
-        dev_lists, dev_tag_lists = load_data2(test_index, for_train=False)
+        train_lists, train_tag_lists = load_data2(train_index)
+        dev_lists, dev_tag_lists = load_data2(test_index)
         # 左闭右闭
         # draw_points(train_tag_lists)
         # (train_lists, train_tag_lists), (dev_lists, dev_tag_lists), (test_lists, test_tag_lists) = divide_data(data, tag)

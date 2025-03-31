@@ -14,7 +14,7 @@ from sklearn.metrics import r2_score
 
 
 
-data, tag = load_data(1, 1, for_train=False)
+data, tag = load_data(1, 1)
 (train_lists, train_tag_lists), (dev_lists, dev_tag_lists), (test_lists, test_tag_lists) = divide_data(data, tag)
 
 
@@ -25,7 +25,7 @@ def get_pre(to_pre):
     :return: pred_tag_lists, [[x, y, z]]
     """
     # lstm_model = load_model('./model_saved/' + "lstm" + '1' + '-' + '14' + '.pkl')
-    lstm_model = load_model('./train_model_saved0/' + "lstm" + '100' + '.pkl')
+    lstm_model = load_model('./train_model_saved4/' + "lstm" + '168' + '.pkl')
     # data = torch.zeros(1, LSTMConfig.time_step, LSTMConfig.input_size).to(LSTMConfig.device)
     data = torch.zeros(1, LSTMConfig.time_step, LSTMConfig.input_size).to(LSTMConfig.device)  # if mlp
     torch.onnx.export(lstm_model, data, './model_saved/exp' + '.onnx', export_params=True, verbose=False, input_names=None,

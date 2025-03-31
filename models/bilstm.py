@@ -16,9 +16,9 @@ class LSTM(nn.Module):
         :param out_size:输出向量的维数
         """
         super(LSTM, self).__init__()
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=0.2)
-        self.dropout = nn.Dropout(0.5)
-        self.fc = nn.Linear(hidden_size * time_step, out_size)
+        # self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=0.1)
+        # self.dropout = nn.Dropout(0.2)
+        # self.fc = nn.Linear(hidden_size * time_step, out_size)
 
         # self.conv1d = nn.Conv1d(in_channels=input_size, out_channels=32, kernel_size=3, padding=1)
         # self.lstm1 = nn.LSTM(input_size=32, hidden_size=hidden_size,
@@ -44,23 +44,23 @@ class LSTM(nn.Module):
         # self.linear = nn.Linear(input_size, 64)
         # self.regressor = nn.Linear(64, out_size)
 
-        # self.embedding = nn.Linear(input_size, 64)
-        #
-        # encoder_layer = nn.TransformerEncoderLayer(
-        #     d_model=64,
-        #     nhead=4,
-        #     dim_feedforward=64 * 4,
-        #     batch_first=True
-        # )
-        # self.transformer_encoder = nn.TransformerEncoder(
-        #     encoder_layer,
-        #     num_layers=num_layers
-        # )
-        #
-        # self.fc = nn.Linear(64, 3)
+        self.embedding = nn.Linear(input_size, 64)
+
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=64,
+            nhead=4,
+            dim_feedforward=64 * 4,
+            batch_first=True
+        )
+        self.transformer_encoder = nn.TransformerEncoder(
+            encoder_layer,
+            num_layers=num_layers
+        )
+
+        self.fc = nn.Linear(64, 3)
 
 
-        # # MLP
+        # MLP
         # self.fc1 = nn.Linear(input_size, hidden_size)
         # self.relu = nn.ReLU()
         # self.fc2 = nn.Linear(hidden_size, hidden_size)
@@ -96,20 +96,20 @@ class LSTM(nn.Module):
         # x = self.fc2(x)  # [batch_size, sequence_length, 1]
         # return x
 
-        x = x.to(LSTMConfig.device)
-        # x: [batch, time_step, input_size]
-        out, (h_n, c_n) = self.lstm(x)
-        # Apply dropout to the output of the LSTM layer
-        # out = self.dropout(out)
-
-        # Take the output from the last time step
-        # out = out[:, -1, :]
-
-        # Take the output from the all the time step
-        out = out.contiguous().view([out.size()[0], -1])
-        # Pass the output through the fully connected layer
-        out = self.fc(out)
-        return out
+        # x = x.to(LSTMConfig.device)
+        # # x: [batch, time_step, input_size]
+        # out, (h_n, c_n) = self.lstm(x)
+        # # Apply dropout to the output of the LSTM layer
+        # # out = self.dropout(out)
+        #
+        # # Take the output from the last time step
+        # # out = out[:, -1, :]
+        #
+        # # Take the output from the all the time step
+        # out = out.contiguous().view([out.size()[0], -1])
+        # # Pass the output through the fully connected layer
+        # out = self.fc(out)
+        # return out
 
         # transformer
         # x = x.to(LSTMConfig.device)
@@ -122,13 +122,13 @@ class LSTM(nn.Module):
 
         # transformer_encoder
         # x shape: (batch_size, seq_len, input_dim)
-        # x = self.embedding(x)
-        # x = self.transformer_encoder(x)
-        # # 使用序列的最后一个时间步进行预测
-        # x = x[:, -1, :]
-        # return self.fc(x)
+        x = self.embedding(x)
+        x = self.transformer_encoder(x)
+        # 使用序列的最后一个时间步进行预测
+        x = x[:, -1, :]
+        return self.fc(x)
 
-        # MLP
+        # # MLP
         # x = x.contiguous().view([x.size()[0], -1])
         # out = self.fc1(x)
         # out = self.relu(out)

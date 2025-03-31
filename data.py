@@ -1,23 +1,57 @@
 """
 处理数据
 """
-import copy
 import math
-from os.path import join
-from codecs import open
 
+import seaborn as sns
 import numpy
 import numpy as np
 import pandas as pd
 import torch
 from matplotlib import pyplot as plt
 
+from Test.OTSU import VRInteractionAnalyzer
 from models.config import LSTMConfig
 from sklearn.model_selection import train_test_split
 from scipy.ndimage import gaussian_filter1d
 
 
-def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1, percentage=1):
+# 计算描述性统计量
+def get_box_plot_stats(data):
+    q1 = np.percentile(data, 25)  # 第一四分位数
+    q2 = np.percentile(data, 50)  # 中位数
+    q3 = np.percentile(data, 75)  # 第三四分位数
+    iqr = q3 - q1  # 四分位距
+
+    # 计算上下须的界限
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+
+    # 找出异常值
+    outliers = [x for x in data if x < lower_bound or x > upper_bound]
+
+    # 计算实际的上下须（不包括异常值）
+    whisker_min = min([x for x in data if x >= lower_bound])
+    whisker_max = max([x for x in data if x <= upper_bound])
+
+    stats = {
+        "最小值": np.min(data),
+        "第一四分位数(Q1)": q1,
+        "中位数(Q2)": q2,
+        "第三四分位数(Q3)": q3,
+        "最大值": np.max(data),
+        "四分位距(IQR)": iqr,
+        "下须": whisker_min,
+        "上须": whisker_max,
+        "异常值数量": len(outliers),
+        "平均值": np.mean(data),
+        "标准差": np.std(data),
+        "数据总量": len(data)
+    }
+
+    return stats, outliers
+
+def load_data(start, end, data_dir="AI_magic_data", step=1, percentage=1):
     """加载数据
 
     :param start: 开始人员编号
@@ -29,12 +63,9 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1, perc
     data_all = []
     tag_all = []
 
-    # fig, ax = plt.subplots(3, 1)
-    # fig.set_size_inches(10, 4)
+
     for dataIndex in range(start, end + 1):
-    # for dataIndex in range(start, end + 1):
-        if dataIndex in range(21, 31) and for_train:
-            continue
+
         print("读取", dataIndex, "号被试数据")
         prefix = data_dir + "\\" + str(dataIndex) + "\\"
         df = pd.read_csv(prefix + "Eye.csv", encoding="utf-8").interpolate()  # 线性插值处理缺失值
@@ -48,24 +79,13 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1, perc
                 # 每一个人每case数据
                 data_per_case = np.array(data_per_person.get_group(i).reset_index())
                 data_per_case2 = np.array(data_per_person2.get_group(i).reset_index())
-                tag_per_case = np.array(tag_per_person.get_group(i).reset_index())
-                # eye_move_characteristic = get_characteristic(data_per_case, 6, 9)
-                head_characteristic = get_characteristic(data_per_case, 12, 15)
-                head_move_characteristic = get_characteristic(data_per_case, 15, 18)
+
                 finger_characteristic = get_characteristic(data_per_case2, 63, 66)
 
-                # 手指尖指向和头手射线连线
-                # dir_char = get_dir_char(data_per_case2)
-                # 全加在hand后面
-                # data_per_case2 = np.hstack((data_per_case2, eye_move_characteristic))
-                # data_per_case2 = np.hstack((data_per_case2, head_characteristic))
-                # data_per_case2 = np.hstack((data_per_case2, head_move_characteristic))
                 data_per_case2 = np.hstack((data_per_case2, finger_characteristic))
-
-
                 start_idx = 0
                 # 选定开始的起点是速度到底最大速度的5%
-                hand_vs = data_per_case2[:, -1]
+                hand_vs = data_per_case2[:, -2]
                 hand_v_max = max(hand_vs)
                 for idxV, hand_V in enumerate(hand_vs):
                     if hand_V > hand_v_max * 0.05:
@@ -87,13 +107,34 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1, perc
                         sample_data = data_per_case[start_idx:end_idx]
                         sample_data2 = data_per_case2[start_idx:end_idx]
                         tag_sample = data_per_case2[:, 63:66][end_idx - 1 + LSTMConfig.pre_frame]
-                        # temp = sample_data2[:, 63:66][0]
-                        # 起点在初始球3cm外的数据
-                        # if (temp[0] * temp[0] + (temp[1] - 1) * (temp[1] - 1) + (
-                        #         temp[2] - 0.2) * (temp[2] - 0.2) > 0.0009):
                         data_all.append(extend_data(sample_data, sample_data2))
                         # tag_sample = tag_per_case[0][9:12]
                         tag_all.append(tag_sample)  # 假设标签在这个位置
+                    # data_all.append(extend_data(data_per_case, data_per_case2))
+                    #  tag_all.append(tag_per_case[0][9:12])
+
+                elif (len(data_per_case) - start_idx) * percentage >= LSTMConfig.time_step + 15 + 5 and percentage != 1 and len(data_per_case) < 180:  # 后半部分应大于20
+
+                    sample_data = data_per_case[round(percentage * (len(data_per_case) - start_idx)) - 20 - 15 -5: round(
+                        percentage * (len(data_per_case) - start_idx)) - 15 -5]
+                    sample_data2 = data_per_case2[round(percentage * (len(data_per_case) - start_idx)) - 20 - 15 -5: round(
+                        percentage * (len(data_per_case) - start_idx)) - 15 -5]
+
+                    # 假设extend_data函数能够处理两个数据帧
+                    data_all.append(extend_data(sample_data, sample_data2))
+                    tag_sample = data_per_case2[:, 63:66][
+                        round(percentage * (len(data_per_case) - start_idx)) - 15 - 1 - 5 + LSTMConfig.pre_frame]
+                    tag_all.append(tag_sample)  # 假设标签在这个位置
+
+                    # for start_idx in range(start_idx, len(data_per_case) - LSTMConfig.time_step - LSTMConfig.pre_frame - 15, step):
+                    #     end_idx = start_idx + LSTMConfig.time_step
+                    #
+                    #     sample_data = data_per_case[start_idx:end_idx]
+                    #     sample_data2 = data_per_case2[start_idx:end_idx]
+                    #     tag_sample = data_per_case2[:, 63:66][end_idx - 1 + LSTMConfig.pre_frame]
+                    #     data_all.append(extend_data(sample_data, sample_data2))
+                    #     # tag_sample = tag_per_case[0][9:12]
+                    #     tag_all.append(tag_sample)  # 假设标签在这个位置
                     # data_all.append(extend_data(data_per_case, data_per_case2))
                     #  tag_all.append(tag_per_case[0][9:12])
             except KeyError:
@@ -105,31 +146,9 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1, perc
     # plt.grid(True)
     # plt.show()
     print("数据读取完成")
-    # 转换为tensor
-    # data_all_ans = torch.zeros((len(data_all), len(data_all[0]), len(data_all[0][0])))
-    # for i in range(len(data_all)):
-    #     for j in range(len(data_all[0])):
-    #         for k in range(len(data_all[0][0])):
-    #             try:
-    #                 data_all_ans[i][j][k] = data_all[i][j][k]
-    #             except IndexError:
-    #                 data_all_ans[i][j][k] = 0
-    jump_time = []
     print("开始转换input为tensor")
     data_all_ans = torch.tensor(data_all, dtype=torch.float32)
-    # data_all_ans = torch.zeros((len(data_all), len(data_all[0]), len(data_all[0][0])))
-    # for i in range(len(data_all)):
-    #     for j in range(len(data_all[0])):
-    #         for k in range(len(data_all[0][0])):
-    #             data_all_ans[i][j][k] = data_all[i][j][k]
-
     tag_all_ans = np.array(tag_all)[:, 8:11]
-    # tag 带时序
-    # tag_all_ans = torch.ones((len(tag_all_ans), LSTMConfig.time_step, len(tag_all[0])))
-    # for i in range(len(tag_all)):
-    #     for j in range(LSTMConfig.time_step):
-    #         for k in range(len(tag_all[0])):
-    #             tag_all_ans[i][j][k] = tag_all[i][k]
     print("开始转换tag为tensor")
     # tag不带时序
     tag_all_ans = torch.zeros((len(tag_all_ans), len(tag_all[0])))
@@ -141,7 +160,7 @@ def load_data(start, end, data_dir="AI_magic_data", for_train=True, step=1, perc
     return data_all_ans, tag_all_ans  # [num, time_step, input_size]
 
 
-def load_data2(loadList,data_dir="AI_magic_data", for_train=True, step=1, percentage=1):
+def load_data2(loadList,data_dir="AI_magic_data", step=1, percentage=1):
     """加载数据
 
     :param start: 开始人员编号
@@ -158,7 +177,6 @@ def load_data2(loadList,data_dir="AI_magic_data", for_train=True, step=1, percen
     # fig, ax = plt.subplots(3, 1)
     # fig.set_size_inches(10, 4)
     for dataIndex in loadList:
-    # for dataIndex in range(start, end + 1):
 
         print("读取", dataIndex, "号被试数据")
         prefix = data_dir + "\\" + str(dataIndex) + "\\"
@@ -188,14 +206,14 @@ def load_data2(loadList,data_dir="AI_magic_data", for_train=True, step=1, percen
                 data_per_case2 = np.hstack((data_per_case2, finger_characteristic))
                 # data_per_case2 = np.hstack((data_per_case2, dir_char))
 
-                # selected_columns = [-1]  # 选择列
-                # # selected_data = data_per_case2[:, selected_columns]
-                #
-                # selected_data = data_per_case2[:, selected_columns].T  # 选择所有行和指定列
-                # # 使用高斯滤波进行平滑处理
-                # sigma = 2  # 标准差，决定平滑的程度
-                # selected_data = gaussian_filter1d(selected_data, sigma).T
-                # to_draw.append(selected_data)
+                selected_columns = [-2]  # 选择列
+                # selected_data = data_per_case2[:, selected_columns]
+
+                selected_data = data_per_case2[:, selected_columns].T  # 选择所有行和指定列
+                # 使用高斯滤波进行平滑处理
+                sigma = 2  # 标准差，决定平滑的程度
+                selected_data = gaussian_filter1d(selected_data, sigma).T
+                to_draw.append(selected_data)
                 # temp = data_per_case2[:, 63:66]
                 # tag_sample = tag_per_case[0][9:12]
                 # for fingerI in range(len(temp)):
@@ -289,9 +307,22 @@ def load_data2(loadList,data_dir="AI_magic_data", for_train=True, step=1, percen
                     # data_all.append(extend_data(data_per_case, data_per_case2))
                     #  tag_all.append(tag_per_case[0][9:12])
 
+                elif (len(data_per_case) - start_idx) * percentage >= LSTMConfig.time_step + 15 and percentage != 1 and len(data_per_case) < 180:  # 后半部分应大于20
+
+                    sample_data = data_per_case[round(percentage * (len(data_per_case) - start_idx)) - 20 - 15: round(
+                        percentage * (len(data_per_case) - start_idx)) - 15]
+                    sample_data2 = data_per_case2[round(percentage * (len(data_per_case) - start_idx)) - 20 - 15: round(
+                        percentage * (len(data_per_case) - start_idx)) - 15]
+
+                    # 假设extend_data函数能够处理两个数据帧
+                    data_all.append(extend_data(sample_data, sample_data2))
+                    tag_sample = data_per_case2[:, 63:66][
+                        round(percentage * (len(data_per_case) - start_idx)) - 15 - 1 + LSTMConfig.pre_frame]
+                    tag_all.append(tag_sample)  # 假设标签在这个位置
+
                 else:
-                    # pass
-                    print("太短辣！")
+                    pass
+                    # print("太短辣！")
             except KeyError:
                 print("case", i, "被完全去除了")
     # 添加图例
@@ -301,37 +332,63 @@ def load_data2(loadList,data_dir="AI_magic_data", for_train=True, step=1, percen
     # plt.grid(True)
     # plt.show()
     print("数据读取完成")
-    # 转换为tensor
-    # data_all_ans = torch.zeros((len(data_all), len(data_all[0]), len(data_all[0][0])))
-    # for i in range(len(data_all)):
-    #     for j in range(len(data_all[0])):
-    #         for k in range(len(data_all[0][0])):
-    #             try:
-    #                 data_all_ans[i][j][k] = data_all[i][j][k]
-    #             except IndexError:
-    #                 data_all_ans[i][j][k] = 0
-    jump_time = []
     print("开始转换input为tensor")
     data_all_ans = torch.tensor(data_all, dtype=torch.float32)
-    # data_all_ans = torch.zeros((len(data_all), len(data_all[0]), len(data_all[0][0])))
-    # for i in range(len(data_all)):
-    #     for j in range(len(data_all[0])):
-    #         for k in range(len(data_all[0][0])):
-    #             data_all_ans[i][j][k] = data_all[i][j][k]
 
     tag_all_ans = np.array(tag_all)[:, 8:11]
-    # tag 带时序
-    # tag_all_ans = torch.ones((len(tag_all_ans), LSTMConfig.time_step, len(tag_all[0])))
-    # for i in range(len(tag_all)):
-    #     for j in range(LSTMConfig.time_step):
-    #         for k in range(len(tag_all[0])):
-    #             tag_all_ans[i][j][k] = tag_all[i][k]
     print("开始转换tag为tensor")
     # tag不带时序
     tag_all_ans = torch.zeros((len(tag_all_ans), len(tag_all[0])))
     for i in range(len(tag_all)):
         for k in range(len(tag_all[0])):
             tag_all_ans[i][k] = tag_all[i][k]
+
+    phase_all = []
+    analyzer = VRInteractionAnalyzer()
+    for i, temp_data in enumerate(to_draw):
+        # if i > 5:
+        #     break
+        pointing_phase, trigger_phase, threshold = analyzer.analyze_interaction(temp_data)
+
+        # print(f"Threshold value: {threshold:.3f}")
+        # print(f"Pointing phase samples: {len(pointing_phase)}")
+        # print(f"Trigger phase samples: {len(trigger_phase)}")
+        phase_all.append(threshold)
+        # 可视化结果
+        # analyzer.visualize_phases(temp_data, threshold)
+
+    # print(numpy.mean(phase_all))
+
+    # 获取统计量和异常值
+    stats, outliers = get_box_plot_stats(phase_all)
+
+    # 打印统计量
+    # print("箱线图统计量:")
+    # for key, value in stats.items():
+    #     print(f"{key}: {value:.2f}")
+    #
+    # # 创建一个图形，包含多个子图
+    # fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
+    #
+    # # 1. 直方图
+    # ax1.hist(phase_all, bins=30, density=True, alpha=0.7, color='blue')
+    # ax1.set_title('Histogram')
+    # ax1.set_xlabel('Value')
+    # ax1.set_ylabel('Frequency')
+    #
+    # # 2. 核密度图
+    # sns.kdeplot(data=phase_all, ax=ax2, fill=True)
+    # ax2.set_title('Density Plot')
+    # ax2.set_xlabel('Value')
+    # ax2.set_ylabel('Density')
+    #
+    # # 3. 箱线图
+    # ax3.boxplot(phase_all)
+    # ax3.set_title('Box Plot')
+    # ax3.set_ylabel('Value')
+    #
+    # plt.tight_layout()
+    # plt.show()
 
     # # region 可视化所有人速度加速度
     # # 设置图表样式
@@ -492,6 +549,9 @@ def get_characteristic(ori_data, start, end):
     sigma = 1  # 标准差，决定平滑的程度
     t2[:, 0] = gaussian_filter1d(t2[:, 0], sigma)
     t2[:, 1] = gaussian_filter1d(t2[:, 1], sigma)
+    t2[:, 2] = gaussian_filter1d(t2[:, 2], sigma)
+    t2[:, 3] = gaussian_filter1d(t2[:, 3], sigma)
+    t2[:, 4] = gaussian_filter1d(t2[:, 4], sigma)
     return t2
 
 def get_dir_char(ori_data):
